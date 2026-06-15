@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>WebRTC Shooter</title>
+  <style>
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      background: #0d0d1a;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif;
+    }
+
+    /* ゲームとビデオオーバーレイの親 */
+    #overlay-wrapper {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* Phaser の canvas */
+    #game-container canvas {
+      display: block;
+    }
+
+    /* ロビー UI */
+    #lobby-ui {
+      display: none;
+      position: fixed;
+      inset: 0;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+    }
+    .lobby-card {
+      background: rgba(15,15,30,.95);
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 18px;
+      padding: 36px 40px;
+      min-width: 340px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .lobby-card h1 {
+      font-size: 26px;
+      font-weight: 900;
+      background: linear-gradient(90deg, #ec4899, #f59e0b);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 4px;
+    }
+    .lobby-card p {
+      color: #64748b;
+      font-size: 13px;
+      margin-top: -8px;
+    }
+    .lobby-input {
+      padding: 11px 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.05);
+      color: #f1f5f9;
+      font-size: 15px;
+      outline: none;
+      width: 100%;
+    }
+    .lobby-input:focus { border-color: #ec4899; }
+    .lobby-input::placeholder { color: #475569; }
+    .lobby-btn {
+      padding: 13px;
+      border-radius: 10px;
+      border: none;
+      background: linear-gradient(135deg, #ec4899, #be185d);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .lobby-btn:hover { box-shadow: 0 4px 20px rgba(236,72,153,.4); transform: translateY(-1px); }
+    .lobby-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+    .lobby-label {
+      font-size: 11px;
+      color: #64748b;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      display: block;
+    }
+    .lobby-field { display: flex; flex-direction: column; }
+  </style>
+</head>
+<body>
+
+<div id="game-container"></div>
+<div id="overlay-wrapper"></div>
+
+<!-- ロビー UI -->
+<div id="lobby-ui">
+  <div class="lobby-card">
+    <h1>🎮 WebRTC Shooter</h1>
+    <p>WebRTC映像付き 2D見下ろしシューター</p>
+
+    <div class="lobby-field">
+      <label class="lobby-label" for="name-input">ニックネーム</label>
+      <input id="name-input" class="lobby-input" type="text" placeholder="例: さくら" maxlength="16" autocomplete="off">
+    </div>
+
+    <div class="lobby-field">
+      <label class="lobby-label" for="room-input">ルームID</label>
+      <input id="room-input" class="lobby-input" type="text" placeholder="default" autocomplete="off" value="default">
+    </div>
+
+    <button id="join-btn" class="lobby-btn">参加する 🚀</button>
+
+    <div style="font-size:12px;color:#334155;text-align:center">
+      同じルームIDを入力した人と対戦できます
+    </div>
+  </div>
+</div>
+
+<!-- Phaser 3 -->
+<script src="https://cdn.jsdelivr.net/npm/phaser@3.87.0/dist/phaser.min.js"></script>
+
+<!-- 設定 -->
+<script src="game/config/constants.js"></script>
+
+<!-- システム -->
+<script src="game/systems/SyncManager.js"></script>
+<script src="game/systems/WebRTCManager.js"></script>
+<script src="game/systems/AudioManager.js"></script>
+<script src="game/systems/VideoOverlay.js"></script>
+
+<!-- エンティティ -->
+<script src="game/entities/RemotePlayer.js"></script>
+<script src="game/entities/EnemySprite.js"></script>
+
+<!-- UI -->
+<script src="ui/ShopUI.js"></script>
+
+<!-- シーン -->
+<script src="game/scenes/LobbyScene.js"></script>
+<script src="game/scenes/GameScene.js"></script>
+
+<!-- エントリ -->
+<script src="game/main.js"></script>
+
+</body>
+</html>

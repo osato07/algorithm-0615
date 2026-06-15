@@ -1,0 +1,41 @@
+[
+  {
+    "id": "slime",
+    "name": "スライム",
+    "maxHp": 60,
+    "moveSpeed": 80,
+    "attackDamage": 8,
+    "attackIntervalMs": 1000,
+    "detectionRange": 320,
+    "attackRange": 48,
+    "experienceReward": 15,
+    "coinReward": 10,
+    "radius": 20
+  },
+  {
+    "id": "goblin",
+    "name": "ゴブリン",
+    "maxHp": 120,
+    "moveSpeed": 130,
+    "attackDamage": 15,
+    "attackIntervalMs": 800,
+    "detectionRange": 480,
+    "attackRange": 52,
+    "experienceReward": 35,
+    "coinReward": 25,
+    "radius": 24
+  },
+  {
+    "id": "ogre",
+    "name": "オーガ",
+    "maxHp": 400,
+    "moveSpeed": 60,
+    "attackDamage": 40,
+    "attackIntervalMs": 1500,
+    "detectionRange": 300,
+    "attackRange": 72,
+    "experienceReward": 100,
+    "coinReward": 80,
+    "radius": 36
+  }
+]

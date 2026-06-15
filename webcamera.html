@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>鬼畜Meet 😤 笑顔バトル</title>
+  <style>
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    :root {
+      --bg:    #0d0d1a;
+      --card:  rgba(255,255,255,.05);
+      --bdr:   rgba(255,255,255,.1);
+      --text:  #f1f5f9;
+      --muted: #64748b;
+      --pink:  #ec4899;
+      --blue:  #3b82f6;
+      --green: #22c55e;
+      --orange:#f59e0b;
+      --red:   #ef4444;
+      --r:     14px;
+    }
+    body {
+      min-height:100dvh;
+      background: var(--bg);
+      background-image:
+        radial-gradient(ellipse 60% 70% at 10% 40%, rgba(236,72,153,.08) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 70% at 90% 60%, rgba(59,130,246,.08) 0%, transparent 60%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif;
+      color: var(--text);
+    }
+    .hidden { display:none !important; }
+    svg { display:block; }
+
+    /* ══ SETUP ══════════════════════════════════════════ */
+    #setup {
+      min-height: 100dvh;
+      display: flex;
+      align-items: flex-start;
+      gap: 32px;
+      padding: 32px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    /* Left: camera preview */
+    .setup-left {
+      flex: 0 0 420px;
+      position: sticky;
+      top: 32px;
+    }
+    .preview-card {
+      background: var(--card);
+      border: 1px solid var(--bdr);
+      border-radius: var(--r);
+      overflow: hidden;
+      position: relative;
+      aspect-ratio: 4/3;
+    }
+    #previewVideo {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+      display: block;
+    }
+    .smile-overlay {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      background: linear-gradient(0deg, rgba(0,0,0,.7) 0%, transparent 100%);
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .smile-bar-bg {
+      flex: 1; height: 8px;
+      background: rgba(255,255,255,.15);
+      border-radius: 100px;
+      overflow: hidden;
+    }
+    .smile-bar { height: 100%; border-radius: 100px; background: var(--green); transition: width .3s, background .3s; width: 0%; }
+    .smile-pct { font-size: 13px; color: #fff; font-weight: 700; min-width: 36px; text-align: right; }
+    .no-cam-msg {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 8px; background: #1e1e30;
+      font-size: 14px; color: var(--muted);
+    }
+    .no-cam-msg .icon { font-size: 40px; }
+
+    .preview-controls {
+      display: flex; gap: 10px; margin-top: 14px;
+    }
+    .pv-btn {
+      flex: 1; padding: 11px 14px;
+      border-radius: 10px; border: 1px solid var(--bdr);
+      background: var(--card); color: var(--text);
+      font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all .2s;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .pv-btn:hover { background: rgba(255,255,255,.1); }
+    .pv-btn.off   { background: rgba(239,68,68,.2); border-color: var(--red); color: var(--red); }
+    .pv-btn svg   { width: 16px; height: 16px; fill: currentColor; }
+
+    .model-status {
+      margin-top: 12px;
+      display: flex; align-items: center; gap: 8px;
+      font-size: 12px; color: var(--muted);
+      background: var(--card); border: 1px solid var(--bdr);
+      border-radius: 10px; padding: 10px 14px;
+    }
+    .model-status .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--orange); flex-shrink: 0;
+      animation: pulse .8s ease infinite alternate;
+    }
+    .model-status .dot.ready { background: var(--green); animation: none; }
+    @keyframes pulse { to { opacity: .3; } }
+
+    /* Right: step wizard */
+    .setup-right { flex: 1; min-width: 0; }
+
+    .game-title {
+      margin-bottom: 28px;
+    }
+    .game-title h1 {
+      font-size: 28px; font-weight: 900;
+      background: linear-gradient(90deg, var(--pink), var(--orange));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.2;
+    }
+    .game-title p { font-size: 14px; color: var(--muted); margin-top: 6px; }
+
+    /* Step indicator */
+    .stepper {
+      display: flex; align-items: center;
+      margin-bottom: 24px;
+    }
+    .sdot {
+      width: 32px; height: 32px; border-radius: 50%;
+      border: 2px solid var(--bdr); background: var(--card);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; color: var(--muted);
+      transition: all .3s; flex-shrink: 0;
+    }
+    .sdot.active { border-color: var(--pink); background: var(--pink); color: #fff; box-shadow: 0 0 14px rgba(236,72,153,.4); }
+    .sdot.done   { border-color: var(--green); background: var(--green); color: #fff; }
+    .sline { flex: 1; height: 2px; background: var(--bdr); transition: background .3s; }
+    .sline.done { background: linear-gradient(90deg, var(--green), var(--blue)); }
+
+    /* Step card */
+    .step-card {
+      background: var(--card);
+      border: 1px solid var(--bdr);
+      border-radius: var(--r);
+      padding: 24px;
+      margin-bottom: 16px;
+      animation: fadeIn .25s ease;
+    }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    .step-card-head {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 6px;
+    }
+    .step-num {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--pink), var(--orange));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 800; color: #fff; flex-shrink: 0;
+    }
+    .step-card-head h3 { font-size: 16px; font-weight: 700; }
+    .step-card p { font-size: 13px; color: var(--muted); margin-bottom: 16px; line-height: 1.6; margin-top: 4px; }
+
+    /* Role buttons */
+    .role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .role-btn {
+      padding: 20px 16px; border-radius: 12px;
+      border: 2px solid var(--bdr); background: var(--card);
+      color: var(--text); cursor: pointer; text-align: center;
+      transition: all .2s; font-family: inherit;
+    }
+    .role-btn .big { font-size: 32px; display: block; margin-bottom: 8px; }
+    .role-btn strong { display: block; font-size: 15px; margin-bottom: 4px; }
+    .role-btn small { font-size: 12px; color: var(--muted); }
+    .role-btn.senko:hover { border-color: var(--pink); box-shadow: 0 0 20px rgba(236,72,153,.25); }
+    .role-btn.koko:hover  { border-color: var(--blue);  box-shadow: 0 0 20px rgba(59,130,246,.25); }
+
+    /* Inputs */
+    .inp-label { font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 6px; display: block; }
+    .sdp-ta {
+      width: 100%; min-height: 88px;
+      padding: 10px 12px;
+      background: rgba(0,0,0,.3); border: 1px solid var(--bdr);
+      border-radius: 8px; color: var(--text);
+      font-family: 'Courier New', monospace; font-size: 11px; line-height: 1.5;
+      resize: vertical; outline: none;
+      transition: border-color .2s;
+    }
+    .sdp-ta:focus { border-color: var(--pink); }
+
+    /* Buttons */
+    .btn {
+      padding: 11px 20px; border-radius: 10px; border: none;
+      font-size: 14px; font-weight: 700; font-family: inherit;
+      cursor: pointer; transition: all .2s;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-full { width: 100%; }
+    .btn-pink  { background: linear-gradient(135deg, var(--pink), #be185d); color: #fff; }
+    .btn-pink:hover  { box-shadow: 0 4px 18px rgba(236,72,153,.4); transform: translateY(-1px); }
+    .btn-blue  { background: linear-gradient(135deg, var(--blue), #1d4ed8); color: #fff; }
+    .btn-blue:hover  { box-shadow: 0 4px 18px rgba(59,130,246,.4); transform: translateY(-1px); }
+    .btn-ghost {
+      background: rgba(255,255,255,.07); border: 1px solid var(--bdr);
+      color: var(--text); font-size: 13px; padding: 9px 16px;
+    }
+    .btn-ghost:hover    { border-color: var(--green); color: var(--green); }
+    .btn-ghost.copied   { border-color: var(--green); color: var(--green); background: rgba(34,197,94,.12); }
+    .btn-row { display: flex; gap: 10px; margin-top: 10px; }
+    .btn-row .btn { flex: 1; }
+
+    /* Spinner */
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,.2); border-top-color: var(--pink);
+      border-radius: 50%; animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ══ GAME ════════════════════════════════════════════ */
+    #game {
+      min-height: 100dvh;
+      display: flex; flex-direction: column;
+      background: var(--bg);
+    }
+
+    .game-header {
+      padding: 16px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--bdr);
+      background: rgba(255,255,255,.02);
+      flex-shrink: 0;
+    }
+    .game-header-left { display: flex; align-items: center; gap: 12px; }
+    .game-header h2 { font-size: 16px; font-weight: 800; background: linear-gradient(90deg,var(--pink),var(--orange)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    #gameTimer { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; background: var(--card); border: 1px solid var(--bdr); border-radius: 100px; padding: 4px 12px; }
+
+    #statusEl {
+      flex: 1; text-align: center;
+      font-size: 18px; font-weight: 800;
+      background: linear-gradient(90deg, var(--pink), var(--orange));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      padding: 0 16px;
+    }
+
+    .game-header-right { display: flex; gap: 8px; }
+    .hdr-btn {
+      width: 38px; height: 38px; border-radius: 50%;
+      border: 1px solid var(--bdr); background: var(--card);
+      color: var(--text); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .2s;
+    }
+    .hdr-btn:hover { background: rgba(255,255,255,.1); }
+    .hdr-btn.off   { background: rgba(239,68,68,.2); border-color: var(--red); color: var(--red); }
+    .hdr-btn svg   { width: 18px; height: 18px; fill: currentColor; }
+
+    /* Arena */
+    .game-arena {
+      flex: 1; display: flex; align-items: stretch;
+      gap: 0; overflow: hidden;
+    }
+
+    .player-card {
+      flex: 1; display: flex; flex-direction: column;
+      padding: 16px; gap: 12px;
+    }
+    .player-card:first-child { border-right: 1px solid var(--bdr); }
+
+    .player-label {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .player-name { font-size: 14px; font-weight: 800; }
+    .player-tag  { font-size: 11px; color: var(--muted); background: var(--card); border: 1px solid var(--bdr); border-radius: 100px; padding: 3px 10px; }
+
+    /* HP */
+    .hp-section { flex-shrink: 0; }
+    .hp-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .hp-row .label { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .05em; flex-shrink: 0; }
+    .hp-num { font-size: 18px; font-weight: 900; margin-left: auto; }
+    .hp-bar-bg { height: 10px; background: rgba(255,255,255,.08); border-radius: 100px; overflow: hidden; }
+    .hp-bar    { height: 100%; border-radius: 100px; background: var(--green); transition: width .3s, background .3s; }
+
+    /* Smile */
+    .smile-section { flex-shrink: 0; }
+    .smile-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .smile-row .label { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+    .exp-text { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+    /* Video */
+    .video-wrap {
+      flex: 1; border-radius: 12px; overflow: hidden;
+      background: #111; position: relative; min-height: 200px;
+    }
+    .game-video {
+      width: 100%; height: 100%;
+      object-fit: cover; display: block;
+    }
+    #localVideo  { transform: scaleX(-1); }
+    .video-no-feed {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: #1a1a2e; font-size: 14px; color: var(--muted);
+    }
+
+    /* Danger flash */
+    .player-card.danger .video-wrap { animation: dangerFlash 1s ease infinite; }
+    @keyframes dangerFlash { 0%,100%{box-shadow:none} 50%{box-shadow:0 0 0 4px var(--red) inset;} }
+
+    /* VS divider */
+    .vs-divider {
+      display: flex; align-items: center; justify-content: center;
+      writing-mode: horizontal-tb; padding: 0 2px; flex-shrink: 0;
+      position: relative;
+    }
+    .vs-label {
+      font-size: 13px; font-weight: 900; color: var(--muted);
+      background: var(--bg); padding: 8px 0;
+    }
+
+    /* Game footer */
+    .game-footer {
+      padding: 14px 24px;
+      border-top: 1px solid var(--bdr);
+      background: rgba(255,255,255,.02);
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .game-footer-info { font-size: 13px; color: var(--muted); }
+    .footer-btns { display: flex; gap: 10px; }
+
+    /* ══ WIN / LOSE OVERLAY ════════════════════════════ */
+    #result-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.85);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 50; backdrop-filter: blur(8px);
+    }
+    .result-card {
+      text-align: center; padding: 48px 56px;
+      background: var(--card); border: 1px solid var(--bdr);
+      border-radius: 24px; max-width: 400px;
+    }
+    .result-emoji { font-size: 72px; margin-bottom: 16px; }
+    .result-title { font-size: 32px; font-weight: 900; margin-bottom: 8px; }
+    .result-title.win  { background: linear-gradient(90deg, var(--green), var(--blue)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .result-title.lose { background: linear-gradient(90deg, var(--red), var(--orange)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .result-sub { font-size: 14px; color: var(--muted); margin-bottom: 28px; }
+    .result-btns { display: flex; gap: 10px; justify-content: center; }
+
+    /* ══ CHAT LOG ══════════════════════════════════════ */
+    #chat-panel {
+      position: fixed; right: 0; bottom: 0; top: 0;
+      width: 280px; background: #13131f;
+      border-left: 1px solid var(--bdr);
+      display: flex; flex-direction: column;
+      transform: translateX(100%); transition: transform .3s;
+      z-index: 30;
+    }
+    #chat-panel.open { transform: translateX(0); }
+    .chat-head { padding: 14px 16px; border-bottom: 1px solid var(--bdr); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+    .chat-head h3 { font-size: 14px; font-weight: 700; }
+    .chat-x { background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer; }
+    .log-area { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+    .log-line { font-size: 12px; color: var(--muted); line-height: 1.5; }
+    .log-line .ts { color: rgba(255,255,255,.2); margin-right: 4px; }
+    .chat-foot { padding: 10px 12px; border-top: 1px solid var(--bdr); display: flex; gap: 8px; flex-shrink: 0; }
+    #chatInput {
+      flex: 1; padding: 8px 12px;
+      background: rgba(255,255,255,.06); border: 1px solid var(--bdr);
+      border-radius: 8px; color: var(--text); font-family: inherit; font-size: 13px;
+      outline: none;
+    }
+    #chatInput:focus { border-color: var(--pink); }
+    .chat-send { padding: 8px 14px; border-radius: 8px; border: none; background: var(--pink); color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+
+    /* ══ TOAST ═════════════════════════════════════════ */
+    #toast {
+      position: fixed; bottom: 24px; left: 50%;
+      transform: translateX(-50%) translateY(60px);
+      background: #1e293b; border: 1px solid var(--bdr);
+      border-radius: 100px; padding: 10px 22px;
+      font-size: 13px; z-index: 100;
+      transition: transform .3s, opacity .3s;
+      opacity: 0; pointer-events: none; white-space: nowrap;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+    @media (max-width: 720px) {
+      #setup { flex-direction: column; padding: 20px; }
+      .setup-left { flex: none; width: 100%; position: static; }
+      .game-arena { flex-direction: column; }
+      .player-card:first-child { border-right: none; border-bottom: 1px solid var(--bdr); }
+      .vs-divider { writing-mode: horizontal-tb; padding: 8px 0; }
+      #chat-panel { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ SETUP ══════════════════════════════════════════════ -->
+<div id="setup">
+
+  <!-- Left: preview -->
+  <div class="setup-left">
+    <div class="preview-card">
+      <video id="previewVideo" autoplay playsinline muted></video>
+      <div id="noCamMsg" class="no-cam-msg">
+        <span class="icon">📷</span>
+        <span>カメラが未起動です</span>
+      </div>
+      <div class="smile-overlay" id="previewSmileOverlay" style="display:none">
+        <span style="font-size:14px">😊</span>
+        <div class="smile-bar-bg"><div class="smile-bar" id="previewSmileBar"></div></div>
+        <span class="smile-pct" id="previewSmilePct">0%</span>
+      </div>
+    </div>
+
+    <div class="preview-controls">
+      <button class="pv-btn" id="btnCamToggle" onclick="toggleSetupCam()">
+        <svg viewBox="0 0 24 24"><path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+        カメラ
+      </button>
+      <button class="pv-btn" id="btnMicToggle" onclick="toggleSetupMic()">
+        <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg>
+        マイク
+      </button>
+    </div>
+
+    <div class="model-status">
+      <div class="dot" id="modelDot"></div>
+      <span id="modelStatusTxt">表情AIモデルを読み込み中...</span>
+    </div>
+  </div>
+
+  <!-- Right: wizard -->
+  <div class="setup-right">
+
+    <div class="game-title">
+      <h1>鬼畜Meet 😤<br>笑顔バトル</h1>
+      <p>笑顔が消えたらHPが減る！先にHPが0になった方が負け。<br>カメラで30%以上の笑顔をキープし続けろ！</p>
+    </div>
+
+    <!-- Stepper -->
+    <div class="stepper" id="stepper">
+      <div class="sdot active" id="sdot1">1</div>
+      <div class="sline" id="sline1"></div>
+      <div class="sdot" id="sdot2">2</div>
+      <div class="sline" id="sline2"></div>
+      <div class="sdot" id="sdot3">3</div>
+    </div>
+
+    <!-- STEP 0: Role -->
+    <div class="step-card" id="stepRole">
+      <div class="step-card-head">
+        <div class="step-num">1</div>
+        <h3>役割を選ぶ</h3>
+      </div>
+      <p>どちらが「先攻」としてオファーを作りますか？</p>
+      <div class="role-grid">
+        <button class="role-btn senko" onclick="pickRole('senko')">
+          <span class="big">📡</span>
+          <strong>先攻（オファー作成）</strong>
+          <small>オファーを作って<br>相手に送る</small>
+        </button>
+        <button class="role-btn koko" onclick="pickRole('koko')">
+          <span class="big">🔗</span>
+          <strong>後攻（オファー受取）</strong>
+          <small>先攻のオファーを<br>受け取って参加</small>
+        </button>
+      </div>
+    </div>
+
+    <!-- STEP 1-SENKO: Generate offer -->
+    <div class="step-card hidden" id="stepSenkoOffer">
+      <div class="step-card-head">
+        <div class="step-num">2</div>
+        <h3>オファーをコピーして相手に送る</h3>
+      </div>
+      <p>オファーコードが生成されました。コピーしてLINEやメール等で相手に送ってください。</p>
+      <div id="offerLoading" style="display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;padding:8px 0">
+        <div class="spinner"></div> 生成中...
+      </div>
+      <div id="offerReady" class="hidden">
+        <label class="inp-label">オファーコード</label>
+        <textarea id="offerTa" class="sdp-ta" readonly></textarea>
+        <div class="btn-row">
+          <button class="btn btn-ghost" id="copyOfferBtn" onclick="copyField('offerTa','copyOfferBtn')">📋 コピー</button>
+          <button class="btn btn-blue" onclick="goSenkoStep3()">コピーした → 次へ</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 2-SENKO: Paste answer -->
+    <div class="step-card hidden" id="stepSenkoAnswer">
+      <div class="step-card-head">
+        <div class="step-num">3</div>
+        <h3>アンサーを貼り付けて接続</h3>
+      </div>
+      <p>相手から返ってきたアンサーコードを貼り付けてください。</p>
+      <label class="inp-label">アンサーコード</label>
+      <textarea id="ansPasteTa" class="sdp-ta" placeholder="ここに貼り付け..."></textarea>
+      <button class="btn btn-pink btn-full" onclick="senkoConnect()" style="margin-top:12px">⚔️ バトル開始！</button>
+    </div>
+
+    <!-- STEP 1-KOKO: Paste offer → generate answer -->
+    <div class="step-card hidden" id="stepKokoOffer">
+      <div class="step-card-head">
+        <div class="step-num">2</div>
+        <h3>オファーを貼り付ける</h3>
+      </div>
+      <p>先攻側からもらったオファーコードを貼り付けてください。アンサーを自動生成します。</p>
+      <label class="inp-label">オファーコード</label>
+      <textarea id="offerPasteTa" class="sdp-ta" placeholder="ここに貼り付け..."></textarea>
+      <button class="btn btn-blue btn-full" onclick="kokoProcess()" style="margin-top:12px">アンサーを生成 →</button>
+    </div>
+
+    <!-- STEP 2-KOKO: Copy answer -->
+    <div class="step-card hidden" id="stepKokoAnswer">
+      <div class="step-card-head">
+        <div class="step-num">3</div>
+        <h3>アンサーをコピーして先攻に送る</h3>
+      </div>
+      <p>このアンサーコードを先攻側に送り返してください。先攻側がセットすると自動で接続されます。</p>
+      <label class="inp-label">アンサーコード（自動生成済み）</label>
+      <textarea id="ansTa" class="sdp-ta" readonly></textarea>
+      <div class="btn-row">
+        <button class="btn btn-ghost" id="copyAnsBtn" onclick="copyField('ansTa','copyAnsBtn')">📋 コピー</button>
+      </div>
+      <p style="font-size:13px;color:var(--muted);margin-top:10px">💡 先攻側がセットすると自動で接続されます</p>
+    </div>
+
+  </div>
+</div><!-- /setup -->
+
+
+<!-- ══ GAME ════════════════════════════════════════════════ -->
+<div id="game" class="hidden">
+
+  <!-- Header -->
+  <div class="game-header">
+    <div class="game-header-left">
+      <h2>😤 鬼畜Meet</h2>
+      <span id="gameTimer">0:00</span>
+    </div>
+
+    <div id="statusEl">笑い続けろ！</div>
+
+    <div class="game-header-right">
+      <button class="hdr-btn" id="gameCamBtn" onclick="toggleGameCam()" title="カメラ">
+        <svg viewBox="0 0 24 24" id="gCamOn"><path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+        <svg viewBox="0 0 24 24" id="gCamOff" class="hidden"><path d="M21 6.5l-4 4V7a1 1 0 0 0-1-1H9.82L21 17.18V6.5zM3.27 2L2 3.27 4.73 6H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12c.21 0 .39-.08.54-.18L19.73 21 21 19.73 3.27 2z"/></svg>
+      </button>
+      <button class="hdr-btn" id="gameMicBtn" onclick="toggleGameMic()" title="マイク">
+        <svg viewBox="0 0 24 24" id="gMicOn"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg>
+        <svg viewBox="0 0 24 24" id="gMicOff" class="hidden"><path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/></svg>
+      </button>
+      <button class="hdr-btn" onclick="toggleChat()" title="チャット/ログ">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+      </button>
+      <button class="hdr-btn" onclick="hangup()" title="退出" style="border-color:rgba(239,68,68,.4);color:var(--red)">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.1-.7-.28-.79-.73-1.68-1.36-2.66-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Arena -->
+  <div class="game-arena">
+
+    <!-- Local player -->
+    <div class="player-card" id="localCard">
+      <div class="player-label">
+        <span class="player-name">😤 自分</span>
+        <span class="player-tag">あなた</span>
+      </div>
+      <div class="hp-section">
+        <div class="hp-row">
+          <span class="label">HP</span>
+          <span class="hp-num" id="localHpNum" style="color:var(--green)">100</span>
+        </div>
+        <div class="hp-bar-bg"><div class="hp-bar" id="localHpBar"></div></div>
+      </div>
+      <div class="smile-section">
+        <div class="smile-row">
+          <span class="label">笑顔</span>
+        </div>
+        <div class="hp-bar-bg"><div class="smile-bar" id="localSmileBar"></div></div>
+        <div class="exp-text" id="localExpTxt">表情: 検出中...</div>
+      </div>
+      <div class="video-wrap">
+        <video id="localVideo" autoplay playsinline muted class="game-video"></video>
+        <div class="video-no-feed" id="localNoFeed">カメラが無効です</div>
+      </div>
+    </div>
+
+    <div class="vs-divider"><span class="vs-label">VS</span></div>
+
+    <!-- Remote player -->
+    <div class="player-card" id="remoteCard">
+      <div class="player-label">
+        <span class="player-name">😤 相手</span>
+        <span class="player-tag">対戦相手</span>
+      </div>
+      <div class="hp-section">
+        <div class="hp-row">
+          <span class="label">HP</span>
+          <span class="hp-num" id="remoteHpNum" style="color:var(--green)">100</span>
+        </div>
+        <div class="hp-bar-bg"><div class="hp-bar" id="remoteHpBar"></div></div>
+      </div>
+      <div class="smile-section">
+        <div class="smile-row">
+          <span class="label">笑顔</span>
+        </div>
+        <div class="hp-bar-bg"><div class="smile-bar" id="remoteSmileBar"></div></div>
+        <div class="exp-text" id="remoteExpTxt">表情: 受信待ち...</div>
+      </div>
+      <div class="video-wrap">
+        <video id="remoteVideo" autoplay playsinline class="game-video"></video>
+        <div class="video-no-feed" id="remoteNoFeed">接続待ち...</div>
+      </div>
+    </div>
+
+  </div>
+</div><!-- /game -->
+
+
+<!-- ══ RESULT OVERLAY ═══════════════════════════════════════ -->
+<div id="resultOverlay" class="hidden">
+  <div class="result-card">
+    <div class="result-emoji" id="resultEmoji">🏆</div>
+    <div class="result-title" id="resultTitle">勝利！</div>
+    <div class="result-sub" id="resultSub"></div>
+    <div class="result-btns">
+      <button class="btn btn-ghost" onclick="location.reload()">もう一度</button>
+      <button class="btn btn-pink" onclick="hangup()">退出</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CHAT / LOG PANEL ══════════════════════════════════════ -->
+<div id="chat-panel">
+  <div class="chat-head">
+    <h3>チャット / ログ</h3>
+    <button class="chat-x" onclick="toggleChat()">✕</button>
+  </div>
+  <div class="log-area" id="logArea"></div>
+  <div class="chat-foot">
+    <input id="chatInput" type="text" placeholder="メッセージ..." onkeydown="if(e.key==='Enter')sendChat()">
+    <button class="chat-send" onclick="sendChat()">送信</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script>
+'use strict';
+
+/* ── State ──────────────────────────────────────────── */
+const ICE = { iceServers:[
+  {urls:'stun:stun.l.google.com:19302'},
+  {urls:'stun:stun1.l.google.com:19302'}
+]};
+
+let peer = null, channel = null, localStream = null;
+let modelReady = false, camOn = true, micOn = true;
+let localHp = 100, remoteHp = 100;
+let gameRunning = false, detectTimer = null;
+let callStart = null, timerInterval = null;
+let chatPanelOpen = false;
+
+const HAPPY_THRESHOLD = 0.3;
+const HP_DAMAGE = 3, HP_HEAL = 1, DETECT_INTERVAL = 500;
+const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights';
+
+/* ── Helpers ─────────────────────────────────────────── */
+const $ = id => document.getElementById(id);
+const show = id => $(id)?.classList.remove('hidden');
+const hide = id => $(id)?.classList.add('hidden');
+const esc  = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+function toast(msg, ms=2800) {
+  const el = $('toast'); el.textContent = msg; el.classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(()=>el.classList.remove('show'), ms);
+}
+
+function addLog(text) {
+  const area = $('logArea');
+  const div = document.createElement('div');
+  div.className = 'log-line';
+  const ts = new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  div.innerHTML = `<span class="ts">[${ts}]</span>${esc(text)}`;
+  area.appendChild(div); area.scrollTop = area.scrollHeight;
+}
+
+function hpColor(hp) {
+  if (hp > 50) return 'var(--green)';
+  if (hp > 25) return 'var(--orange)';
+  return 'var(--red)';
+}
+
+function updateHpDisplay() {
+  $('localHpNum').textContent  = localHp;
+  $('localHpBar').style.width  = localHp + '%';
+  $('localHpBar').style.background = hpColor(localHp);
+  $('localHpNum').style.color  = hpColor(localHp);
+  $('localCard').classList.toggle('danger', localHp <= 25);
+
+  $('remoteHpNum').textContent = remoteHp;
+  $('remoteHpBar').style.width = remoteHp + '%';
+  $('remoteHpBar').style.background = hpColor(remoteHp);
+  $('remoteHpNum').style.color = hpColor(remoteHp);
+  $('remoteCard').classList.toggle('danger', remoteHp <= 25);
+}
+
+/* ── Face-API model load ─────────────────────────────── */
+Promise.all([
+  faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+  faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL),
+]).then(() => {
+  modelReady = true;
+  $('modelStatusTxt').textContent = '表情AI準備完了！カメラを開始してください。';
+  $('modelDot').classList.add('ready');
+  startCamera();
+}).catch(err => {
+  $('modelStatusTxt').textContent = 'AIモデルの読み込みに失敗: ' + err.message;
+});
+
+/* ── Camera ──────────────────────────────────────────── */
+async function startCamera() {
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
+    $('previewVideo').srcObject = localStream;
+    hide('noCamMsg');
+    $('previewSmileOverlay').style.display = '';
+    startPreviewDetection();
+  } catch(e) {
+    addLog('カメラエラー: ' + e.message);
+  }
+}
+
+function toggleSetupCam() {
+  camOn = !camOn;
+  if (localStream) localStream.getVideoTracks().forEach(t=>t.enabled=camOn);
+  const btn = $('btnCamToggle');
+  btn.classList.toggle('off', !camOn);
+  btn.innerHTML = camOn
+    ? `<svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:currentColor"><path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z"/></svg>カメラ`
+    : `<svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:currentColor"><path d="M21 6.5l-4 4V7a1 1 0 0 0-1-1H9.82L21 17.18V6.5zM3.27 2L2 3.27 4.73 6H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12c.21 0 .39-.08.54-.18L19.73 21 21 19.73 3.27 2z"/></svg>カメラ OFF`;
+  camOn ? hide('localNoFeed') : show('localNoFeed');
+}
+
+function toggleSetupMic() {
+  micOn = !micOn;
+  if (localStream) localStream.getAudioTracks().forEach(t=>t.enabled=micOn);
+  const btn = $('btnMicToggle');
+  btn.classList.toggle('off', !micOn);
+}
+
+function toggleGameCam() {
+  camOn = !camOn;
+  if (localStream) localStream.getVideoTracks().forEach(t=>t.enabled=camOn);
+  $('gameCamBtn').classList.toggle('off', !camOn);
+  $('gCamOn').classList.toggle('hidden', !camOn);
+  $('gCamOff').classList.toggle('hidden', camOn);
+  camOn ? hide('localNoFeed') : show('localNoFeed');
+}
+
+function toggleGameMic() {
+  micOn = !micOn;
+  if (localStream) localStream.getAudioTracks().forEach(t=>t.enabled=micOn);
+  $('gameMicBtn').classList.toggle('off', !micOn);
+  $('gMicOn').classList.toggle('hidden', !micOn);
+  $('gMicOff').classList.toggle('hidden', micOn);
+}
+
+/* ── Preview smile detection (setup screen) ─────────── */
+let previewDetecting = false;
+async function startPreviewDetection() {
+  if (previewDetecting || !modelReady) return;
+  previewDetecting = true;
+  async function loop() {
+    if (!$('setup').classList.contains('hidden') && localStream) {
+      const v = $('previewVideo');
+      if (v.readyState >= 2) {
+        try {
+          const r = await faceapi.detectSingleFace(v, new faceapi.TinyFaceDetectorOptions()).withFaceExpressions();
+          const happy = r ? r.expressions.happy : 0;
+          const pct = Math.round(happy * 100);
+          $('previewSmileBar').style.width = pct + '%';
+          $('previewSmileBar').style.background = happy >= HAPPY_THRESHOLD ? 'var(--green)' : 'var(--orange)';
+          $('previewSmilePct').textContent = pct + '%';
+        } catch(_) {}
+      }
+      setTimeout(loop, 400);
+    } else {
+      previewDetecting = false;
+    }
+  }
+  loop();
+}
+
+/* ── STEP wizard ─────────────────────────────────────── */
+function setStep(n) {
+  [1,2,3].forEach(i => {
+    const d = $('sdot'+i), l = $('sline'+i);
+    d.className = 'sdot';
+    if      (i < n)  { d.classList.add('done'); d.textContent = '✓'; }
+    else if (i === n) { d.classList.add('active'); d.textContent = i; }
+    else              { d.textContent = i; }
+    if (l) l.className = i < n ? 'sline done' : 'sline';
+  });
+}
+
+function pickRole(role) {
+  hide('stepRole');
+  setStep(2);
+  initPeer(role === 'senko');
+}
+
+/* ── WebRTC ──────────────────────────────────────────── */
+function initPeer(isSenko) {
+  peer = new RTCPeerConnection(ICE);
+  if (localStream) localStream.getTracks().forEach(t => peer.addTrack(t, localStream));
+
+  peer.ontrack = e => {
+    $('remoteVideo').srcObject = e.streams[0];
+    hide('remoteNoFeed');
+    addLog('相手の映像を受信しました。');
+  };
+  peer.onconnectionstatechange = () => {
+    addLog('接続状態: ' + peer.connectionState);
+    if (peer.connectionState === 'disconnected') addLog('接続が切断されました。');
+  };
+
+  if (isSenko) {
+    channel = peer.createDataChannel('game');
+    setupChannel();
+    show('stepSenkoOffer');
+    peer.onicegatheringstatechange = () => {
+      if (peer.iceGatheringState !== 'complete') return;
+      const sdp = JSON.stringify(peer.localDescription);
+      $('offerTa').value = sdp;
+      hide('offerLoading'); show('offerReady');
+      // Auto copy
+      navigator.clipboard.writeText(sdp).then(()=> toast('📋 オファーを自動コピーしました！相手に送ってください')).catch(()=>{});
+    };
+    peer.createOffer().then(o=>peer.setLocalDescription(o)).catch(e=>addLog('Offer生成失敗: '+e.message));
+  } else {
+    peer.ondatachannel = e => { channel = e.channel; setupChannel(); };
+    show('stepKokoOffer');
+  }
+}
+
+async function kokoProcess() {
+  const raw = $('offerPasteTa').value.trim();
+  if (!raw) { toast('オファーコードを貼り付けてください'); return; }
+  let offer; try { offer = JSON.parse(raw); } catch { toast('形式が正しくありません'); return; }
+
+  peer.onicegatheringstatechange = () => {
+    if (peer.iceGatheringState !== 'complete') return;
+    const sdp = JSON.stringify(peer.localDescription);
+    $('ansTa').value = sdp;
+    hide('stepKokoOffer'); setStep(3); show('stepKokoAnswer');
+    // Auto copy
+    navigator.clipboard.writeText(sdp).then(()=> toast('📋 アンサーを自動コピーしました！先攻側に送ってください')).catch(()=>{});
+  };
+
+  try {
+    await peer.setRemoteDescription(offer);
+    const ans = await peer.createAnswer();
+    await peer.setLocalDescription(ans);
+  } catch(e) { toast('エラー: '+e.message); }
+}
+
+function goSenkoStep3() {
+  hide('stepSenkoOffer'); setStep(3); show('stepSenkoAnswer');
+}
+
+async function senkoConnect() {
+  const raw = $('ansPasteTa').value.trim();
+  if (!raw) { toast('アンサーコードを貼り付けてください'); return; }
+  let ans; try { ans = JSON.parse(raw); } catch { toast('形式が正しくありません'); return; }
+  try { await peer.setRemoteDescription(ans); } catch(e) { toast('エラー: '+e.message); }
+}
+
+function copyField(taId, btnId) {
+  const v = $(taId).value;
+  if (!v) { toast('まだ生成されていません'); return; }
+  navigator.clipboard.writeText(v).then(()=>{
+    const btn = $(btnId), orig = btn.textContent;
+    btn.textContent = '✅ コピーしました';
+    btn.classList.add('copied');
+    setTimeout(()=>{ btn.textContent=orig; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+/* ── DataChannel ─────────────────────────────────────── */
+function setupChannel() {
+  channel.onopen = () => {
+    addLog('接続完了！ゲームを開始します。');
+    openGame();
+  };
+  channel.onmessage = e => {
+    try {
+      const d = JSON.parse(e.data);
+      if (d.type === 'chat') {
+        addLog('相手: ' + d.text);
+      } else if (d.type === 'hp') {
+        remoteHp = Math.max(0, d.value);
+        const smile = d.smile ?? 0;
+        $('remoteSmileBar').style.width = Math.round(smile*100) + '%';
+        $('remoteSmileBar').style.background = smile >= HAPPY_THRESHOLD ? 'var(--green)' : 'var(--orange)';
+        $('remoteExpTxt').textContent = '笑顔: ' + Math.round(smile*100) + '%' + (d.expr ? ` (${d.expr})` : '');
+        updateHpDisplay();
+        if (remoteHp <= 0 && gameRunning) gameOver(true);
+      } else if (d.type === 'game_over') {
+        gameOver(true);
+      }
+    } catch { addLog('相手: ' + e.data); }
+  };
+}
+
+function safeSend(data) {
+  if (channel?.readyState === 'open') channel.send(JSON.stringify(data));
+}
+
+/* ── Game ────────────────────────────────────────────── */
+function openGame() {
+  hide('setup');
+  show('game');
+  $('localVideo').srcObject = localStream;
+  hide('localNoFeed');
+  $('remoteNoFeed').textContent = '映像待ち...';
+  callStart = Date.now();
+  timerInterval = setInterval(updateTimer, 1000);
+  localHp = 100; remoteHp = 100;
+  updateHpDisplay();
+  $('statusEl').textContent = '笑い続けろ！😤';
+  addLog('ゲーム開始！笑顔30%以上をキープしてください。');
+  gameRunning = true;
+  runDetection();
+}
+
+function updateTimer() {
+  const s = Math.floor((Date.now()-callStart)/1000);
+  $('gameTimer').textContent = Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
+}
+
+async function runDetection() {
+  if (!gameRunning) return;
+  const v = $('localVideo');
+  if (v.srcObject && v.readyState >= 2) {
+    try {
+      const r = await faceapi.detectSingleFace(v, new faceapi.TinyFaceDetectorOptions()).withFaceExpressions();
+      if (r) {
+        const happy = r.expressions.happy;
+        const top   = Object.entries(r.expressions).sort((a,b)=>b[1]-a[1])[0];
+        const pct   = Math.round(happy*100);
+        $('localSmileBar').style.width = pct + '%';
+        $('localSmileBar').style.background = happy >= HAPPY_THRESHOLD ? 'var(--green)' : 'var(--orange)';
+        $('localExpTxt').textContent = `笑顔: ${pct}% (${top[0]})`;
+        localHp = happy >= HAPPY_THRESHOLD ? Math.min(100, localHp+HP_HEAL) : Math.max(0, localHp-HP_DAMAGE);
+        safeSend({type:'hp', value:localHp, smile:happy, expr:top[0]});
+      } else {
+        $('localExpTxt').textContent = '顔が検出されません 😶';
+        localHp = Math.max(0, localHp - HP_DAMAGE);
+        safeSend({type:'hp', value:localHp, smile:0});
+      }
+      updateHpDisplay();
+      if (localHp <= 0) { gameOver(false); return; }
+    } catch(_) {}
+  }
+  detectTimer = setTimeout(runDetection, DETECT_INTERVAL);
+}
+
+function gameOver(won) {
+  if (!gameRunning) return;
+  gameRunning = false; clearTimeout(detectTimer);
+  if (timerInterval) clearInterval(timerInterval);
+
+  $('resultEmoji').textContent  = won ? '🏆' : '😭';
+  $('resultTitle').textContent  = won ? 'あなたの勝ち！' : 'あなたの負け！';
+  $('resultTitle').className    = 'result-title ' + (won ? 'win' : 'lose');
+  $('resultSub').textContent    = won ? '相手が笑えなくなりました 😈' : 'もっと笑って！😂';
+  show('resultOverlay');
+  addLog(won ? '🏆 勝利！' : '😭 敗北...');
+  if (!won) { safeSend({type:'game_over'}); setTimeout(()=>peer?.close(), 1000); }
+}
+
+function hangup() {
+  if (channel) channel.close();
+  if (peer) peer.close();
+  if (localStream) localStream.getTracks().forEach(t=>t.stop());
+  if (timerInterval) clearInterval(timerInterval);
+  location.reload();
+}
+
+/* ── Chat ────────────────────────────────────────────── */
+function sendChat() {
+  const inp = $('chatInput'), text = inp.value.trim();
+  if (!text) return;
+  safeSend({type:'chat', text});
+  addLog('自分: ' + text);
+  inp.value = '';
+}
+
+function toggleChat() {
+  chatPanelOpen = !chatPanelOpen;
+  $('chat-panel').classList.toggle('open', chatPanelOpen);
+}
+
+$('chatInput').addEventListener('keydown', e => { if (e.key==='Enter') sendChat(); });
+</script>
+</body>
+</html>

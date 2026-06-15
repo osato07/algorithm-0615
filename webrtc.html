@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>P2P Chat</title>
+  <style>
+    :root {
+      --pink:        #ec4899;
+      --pink-light:  #f9a8d4;
+      --pink-dark:   #be185d;
+      --pink-glow:   rgba(236,72,153,.25);
+      --blue:        #3b82f6;
+      --blue-light:  #93c5fd;
+      --blue-dark:   #1d4ed8;
+      --blue-glow:   rgba(59,130,246,.25);
+      --green:       #10b981;
+      --bg:          #0d0d1a;
+      --card:        rgba(255,255,255,.04);
+      --border:      rgba(255,255,255,.09);
+      --text:        #f1f5f9;
+      --muted:       #64748b;
+      --r:           16px;
+      --rs:          10px;
+    }
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      min-height:100dvh;
+      background: #0d0d1a;
+      background-image:
+        radial-gradient(ellipse 60% 80% at 10% 50%, rgba(236,72,153,.10) 0%, transparent 70%),
+        radial-gradient(ellipse 60% 80% at 90% 50%, rgba(59,130,246,.10) 0%, transparent 70%);
+      font-family: -apple-system,BlinkMacSystemFont,'Segoe UI','Hiragino Sans',sans-serif;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .hidden { display:none!important; }
+
+    /* ── SETUP ── */
+    #setup {
+      width: 100%;
+      max-width: 540px;
+    }
+
+    .setup-logo {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .setup-logo h1 {
+      font-size: 30px;
+      font-weight: 900;
+      letter-spacing: -.5px;
+      background: linear-gradient(90deg, var(--pink), #a78bfa, var(--blue));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .setup-logo p {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    /* Stepper */
+    #stepper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+      gap: 0;
+    }
+    .s-dot {
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      background: var(--card);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700;
+      color: var(--muted);
+      transition: all .3s;
+      position: relative;
+    }
+    .s-dot.active {
+      border-color: var(--pink);
+      background: linear-gradient(135deg, var(--pink), var(--pink-dark));
+      color: #fff;
+      box-shadow: 0 0 18px var(--pink-glow);
+    }
+    .s-dot.done {
+      border-color: var(--green);
+      background: var(--green);
+      color: #fff;
+    }
+    .s-line {
+      width: 52px; height: 2px;
+      background: var(--border);
+      transition: background .3s;
+    }
+    .s-line.done { background: linear-gradient(90deg, var(--green), var(--blue)); }
+
+    /* Card */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 28px 32px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+    .card-head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 6px;
+    }
+    .card-icon {
+      width: 38px; height: 38px;
+      border-radius: 11px;
+      background: linear-gradient(135deg, var(--pink), var(--blue));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 19px;
+      flex-shrink: 0;
+    }
+    .card-head h2 { font-size: 18px; font-weight: 700; }
+    .card-desc { color: var(--muted); font-size: 13px; margin-bottom: 22px; line-height: 1.65; margin-top: 4px; }
+
+    /* Role picker */
+    .role-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .role-btn {
+      padding: 22px 16px;
+      border-radius: var(--rs);
+      border: 2px solid var(--border);
+      background: rgba(255,255,255,.03);
+      color: var(--text);
+      cursor: pointer;
+      text-align: center;
+      transition: all .2s;
+    }
+    .role-btn:hover { background: rgba(255,255,255,.06); }
+    .role-btn.host:hover { border-color: var(--pink); box-shadow: 0 0 22px var(--pink-glow); }
+    .role-btn.guest:hover { border-color: var(--blue);  box-shadow: 0 0 22px var(--blue-glow); }
+    .role-btn .emoji { font-size: 34px; display: block; margin-bottom: 10px; }
+    .role-btn strong { display: block; font-size: 15px; margin-bottom: 3px; }
+    .role-btn small { color: var(--muted); font-size: 12px; line-height: 1.4; }
+
+    /* Inputs */
+    label.lbl { display: block; font-size: 12px; color: var(--muted); margin-bottom: 7px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; }
+    .inp {
+      width: 100%;
+      padding: 11px 14px;
+      background: rgba(255,255,255,.05);
+      border: 1px solid var(--border);
+      border-radius: var(--rs);
+      color: var(--text);
+      font-size: 15px;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      font-family: inherit;
+    }
+    .inp:focus { border-color: var(--pink); box-shadow: 0 0 0 3px var(--pink-glow); }
+    textarea.inp { resize: vertical; min-height: 110px; font-family: 'SF Mono','Fira Code',monospace; font-size: 11.5px; line-height: 1.55; }
+    .fg { margin-bottom: 18px; }
+
+    /* Buttons */
+    .btn {
+      padding: 11px 20px;
+      border-radius: var(--rs);
+      border: none;
+      font-size: 14px; font-weight: 700;
+      cursor: pointer;
+      transition: all .2s;
+      display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    }
+    .btn-full { width: 100%; }
+    .btn-pink {
+      background: linear-gradient(135deg, var(--pink), var(--pink-dark));
+      color: #fff;
+    }
+    .btn-pink:hover { box-shadow: 0 4px 20px var(--pink-glow); transform: translateY(-1px); }
+    .btn-blue {
+      background: linear-gradient(135deg, var(--blue), var(--blue-dark));
+      color: #fff;
+    }
+    .btn-blue:hover { box-shadow: 0 4px 20px var(--blue-glow); transform: translateY(-1px); }
+    .btn-ghost {
+      background: rgba(255,255,255,.06);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 13px;
+      padding: 8px 16px;
+    }
+    .btn-ghost:hover { border-color: var(--pink); color: var(--pink); }
+    .btn-ghost.ok { border-color: var(--green)!important; color: var(--green)!important; background: rgba(16,185,129,.1)!important; }
+    .btn-row { display: flex; gap: 10px; margin-top: 10px; }
+    .btn-row .btn { flex: 1; }
+
+    /* Spinner */
+    .spin {
+      width: 22px; height: 22px;
+      border: 2px solid rgba(255,255,255,.2);
+      border-top-color: var(--pink);
+      border-radius: 50%;
+      animation: rot .7s linear infinite;
+    }
+    @keyframes rot { to { transform: rotate(360deg); } }
+    .loading-box { display: flex; flex-direction: column; align-items: center; padding: 20px; gap: 12px; color: var(--muted); font-size: 13px; }
+
+    /* Divider */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 22px 0; }
+
+    /* ── CHAT ── */
+    #chat {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      background: #0d0d1a;
+      background-image:
+        radial-gradient(ellipse 50% 60% at 0% 50%, rgba(236,72,153,.08) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 60% at 100% 50%, rgba(59,130,246,.08) 0%, transparent 60%);
+    }
+
+    /* Header */
+    .chat-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,.03);
+      backdrop-filter: blur(12px);
+      flex-shrink: 0;
+    }
+    .head-left { display: flex; align-items: center; gap: 11px; }
+    .av {
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; font-weight: 800;
+      flex-shrink: 0;
+    }
+    .av-pink { background: linear-gradient(135deg, var(--pink), var(--pink-dark)); }
+    .av-blue { background: linear-gradient(135deg, var(--blue), var(--blue-dark)); }
+    .head-info h3 { font-size: 15px; font-weight: 700; }
+    .status-row { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--muted); }
+    .dot-live { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 7px var(--green); animation: blink 2s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .head-right { display: flex; align-items: center; gap: 9px; }
+    .self-chip {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 20px; padding: 5px 12px 5px 6px;
+    }
+    .self-chip .av { width: 26px; height: 26px; font-size: 11px; }
+    .self-chip span { font-size: 13px; font-weight: 600; }
+
+    /* Messages */
+    .msgs {
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px 18px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      scroll-behavior: smooth;
+    }
+    .msgs::-webkit-scrollbar { width: 4px; }
+    .msgs::-webkit-scrollbar-thumb { background: rgba(255,255,255,.08); border-radius: 4px; }
+
+    .msg-row { display: flex; align-items: flex-end; gap: 8px; animation: fadeUp .2s ease; }
+    .msg-row.self { flex-direction: row-reverse; }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+    .msg-av { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; flex-shrink: 0; }
+    .msg-body { max-width: 68%; display: flex; flex-direction: column; gap: 3px; }
+    .msg-row.self .msg-body { align-items: flex-end; }
+    .msg-name { font-size: 10.5px; color: var(--muted); padding: 0 4px; }
+    .bubble {
+      padding: 9px 14px;
+      border-radius: 18px;
+      font-size: 14px;
+      line-height: 1.55;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+    .msg-row.self .bubble { background: linear-gradient(135deg,var(--pink),var(--pink-dark)); color:#fff; border-bottom-right-radius:4px; }
+    .msg-row.peer .bubble { background: rgba(59,130,246,.13); border: 1px solid rgba(59,130,246,.2); color: var(--text); border-bottom-left-radius:4px; }
+    .bubble-img { max-width: 280px; max-height: 260px; border-radius: 12px; display: block; cursor: zoom-in; }
+    .msg-time { font-size: 9.5px; color: var(--muted); padding: 0 4px; }
+    .sys-msg { text-align: center; }
+    .sys-msg span { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 4px 13px; font-size: 12px; color: var(--muted); }
+
+    /* Input area */
+    .chat-foot {
+      padding: 12px 16px 14px;
+      border-top: 1px solid var(--border);
+      background: rgba(255,255,255,.02);
+      flex-shrink: 0;
+    }
+    .hints {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 9px;
+    }
+    .hint { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+    .kbk {
+      background: rgba(255,255,255,.07);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 2px 6px;
+      font-size: 10.5px;
+      font-family: monospace;
+    }
+    .input-row { display: flex; gap: 10px; align-items: flex-end; }
+    #chat-ta {
+      flex: 1;
+      min-height: 42px;
+      max-height: 140px;
+      padding: 11px 14px;
+      background: rgba(255,255,255,.05);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--text);
+      font-size: 14px;
+      font-family: inherit;
+      resize: none;
+      outline: none;
+      overflow-y: auto;
+      transition: border-color .2s;
+      line-height: 1.5;
+    }
+    #chat-ta:focus { border-color: rgba(236,72,153,.5); }
+    .send-btn {
+      width: 42px; height: 42px;
+      border-radius: 12px;
+      border: none;
+      background: linear-gradient(135deg,var(--pink),var(--pink-dark));
+      color: #fff;
+      font-size: 17px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: all .2s;
+    }
+    .send-btn:hover { box-shadow: 0 4px 16px var(--pink-glow); transform: scale(1.06); }
+
+    /* ── CAMERA MODAL ── */
+    #cam-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.75);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      backdrop-filter: blur(8px);
+      padding: 20px;
+    }
+    .cam-card {
+      background: #13131f;
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 22px;
+      width: 100%;
+      max-width: 460px;
+    }
+    .cam-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; font-size: 16px; font-weight: 700; }
+    .cam-close { background: none; border: none; color: var(--muted); font-size: 20px; cursor: pointer; line-height: 1; }
+    .cam-close:hover { color: var(--pink); }
+    .cam-view {
+      width: 100%; aspect-ratio: 4/3;
+      background: #000;
+      border-radius: var(--rs);
+      overflow: hidden;
+      margin-bottom: 14px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #cam-video, #cam-canvas { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .cam-actions { display: flex; gap: 10px; }
+    .cam-actions .btn { flex: 1; }
+
+    /* ── LIGHTBOX ── */
+    #lightbox {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 60;
+      cursor: zoom-out;
+      padding: 20px;
+    }
+    #lightbox img { max-width: 100%; max-height: 90dvh; border-radius: 12px; }
+
+    /* ── HP BATTLE ── */
+    #hp-panel {
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,.02);
+      padding: 10px 18px 8px;
+      flex-shrink: 0;
+    }
+    .hp-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .hp-name { font-size: 11px; color: var(--muted); width: 54px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .hp-name.self { text-align: right; }
+    .hp-bg { flex: 1; height: 9px; background: rgba(255,255,255,.08); border-radius: 5px; overflow: hidden; }
+    .hp-fill { height: 100%; border-radius: 5px; transition: width .3s ease, background .3s ease; }
+    .hp-val { font-size: 12px; font-weight: 700; width: 30px; text-align: center; flex-shrink: 0; color: var(--text); }
+    .vs-icon { font-size: 16px; flex-shrink: 0; }
+    .hp-sub { display: flex; justify-content: space-between; margin-top: 4px; font-size: 11px; color: var(--muted); }
+
+    /* ── TOAST ── */
+    #toast {
+      position: fixed;
+      bottom: 24px; left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #1e293b;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 24px;
+      padding: 10px 22px;
+      font-size: 13px;
+      color: var(--text);
+      z-index: 100;
+      transition: transform .3s;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════ SETUP WIZARD ══════════════ -->
+<div id="setup">
+
+  <div class="setup-logo">
+    <h1>💬 P2P Chat</h1>
+    <p>サーバー不要・ブラウザだけで直接つながるチャット</p>
+  </div>
+
+  <!-- Step indicator -->
+  <div id="stepper" class="hidden">
+    <div class="s-dot" id="d1">1</div>
+    <div class="s-line" id="l1"></div>
+    <div class="s-dot" id="d2">2</div>
+    <div class="s-line" id="l2"></div>
+    <div class="s-dot" id="d3">3</div>
+  </div>
+
+  <!-- STEP 0: Role -->
+  <div id="s0" class="card">
+    <div class="card-head"><div class="card-icon">🚀</div><h2>はじめましょう</h2></div>
+    <div class="card-desc">どちらの役割で接続しますか？</div>
+    <div class="role-grid">
+      <button class="role-btn host" onclick="pickRole('host')">
+        <span class="emoji">📡</span>
+        <strong>招待する</strong>
+        <small>オファーを作って<br>相手に送る</small>
+      </button>
+      <button class="role-btn guest" onclick="pickRole('guest')">
+        <span class="emoji">🔗</span>
+        <strong>参加する</strong>
+        <small>オファーを受け取って<br>接続する</small>
+      </button>
+    </div>
+  </div>
+
+  <!-- STEP 1: Name -->
+  <div id="s1" class="card hidden">
+    <div class="card-head"><div class="card-icon">👤</div><h2>あなたの名前</h2></div>
+    <div class="card-desc">チャットで表示されるニックネームを決めてください。名前を決めてから接続が開始します。</div>
+    <div class="fg">
+      <label class="lbl">ニックネーム</label>
+      <input id="name-inp" class="inp" type="text" placeholder="例：さくら" maxlength="20" autocomplete="off">
+    </div>
+    <button class="btn btn-pink btn-full" onclick="submitName()">次へ →</button>
+  </div>
+
+  <!-- STEP 2-HOST: Generate offer -->
+  <div id="s2h" class="card hidden">
+    <div class="card-head"><div class="card-icon">📋</div><h2>オファーを作成</h2></div>
+    <div class="card-desc">オファーコードをコピーして、LINEやメールなどで相手に送ってください。</div>
+    <div id="offer-load" class="loading-box">
+      <div class="spin"></div>
+      <span>オファーを生成中...</span>
+    </div>
+    <div id="offer-ready" class="hidden">
+      <div class="fg">
+        <label class="lbl">オファーコード（コピーして相手に送る）</label>
+        <textarea id="offer-ta" class="inp" readonly></textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" id="copy-offer-btn" onclick="copyField('offer-ta','copy-offer-btn')">📋 コピー</button>
+        <button class="btn btn-pink" onclick="goStep3Host()">コピーした → 次へ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2-GUEST: Paste offer, get answer -->
+  <div id="s2g" class="card hidden">
+    <div class="card-head"><div class="card-icon">📩</div><h2>オファーを貼り付け</h2></div>
+    <div class="card-desc">招待者からもらったオファーコードを貼り付けてください。</div>
+    <div class="fg">
+      <label class="lbl">オファーコード</label>
+      <textarea id="paste-offer-ta" class="inp" placeholder="ここに貼り付け..."></textarea>
+    </div>
+    <button class="btn btn-blue btn-full" onclick="processOffer()">アンサーを生成 →</button>
+
+    <div id="answer-block" class="hidden">
+      <hr class="divider">
+      <div class="card-head" style="margin-bottom:6px"><div class="card-icon">✅</div><h2>アンサーをコピー</h2></div>
+      <div class="card-desc">このアンサーコードを相手（招待者）に送り返してください。相手がセットすると自動で接続されます。</div>
+      <div class="fg">
+        <label class="lbl">アンサーコード</label>
+        <textarea id="answer-ta" class="inp" readonly></textarea>
+      </div>
+      <button class="btn btn-ghost" id="copy-ans-btn" onclick="copyField('answer-ta','copy-ans-btn')">📋 コピー</button>
+    </div>
+  </div>
+
+  <!-- STEP 3-HOST: Paste answer -->
+  <div id="s3h" class="card hidden">
+    <div class="card-head"><div class="card-icon">🔑</div><h2>アンサーを貼り付け</h2></div>
+    <div class="card-desc">相手から返ってきたアンサーコードを貼り付けて接続を完了します。</div>
+    <div class="fg">
+      <label class="lbl">アンサーコード</label>
+      <textarea id="paste-ans-ta" class="inp" placeholder="ここに貼り付け..."></textarea>
+    </div>
+    <button class="btn btn-pink btn-full" onclick="connectAnswer()">接続する 🎉</button>
+  </div>
+
+</div><!-- /setup -->
+
+
+<!-- ══════════════ CHAT ══════════════ -->
+<div id="chat" class="hidden">
+
+  <div class="chat-head">
+    <div class="head-left">
+      <div class="av av-blue" id="peer-av">?</div>
+      <div class="head-info">
+        <h3 id="peer-name">接続中...</h3>
+        <div class="status-row"><div class="dot-live"></div><span>接続済み</span></div>
+      </div>
+    </div>
+    <div class="head-right">
+      <div class="self-chip">
+        <div class="av av-pink" id="self-av">?</div>
+        <span id="self-name">あなた</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- HP Battle Panel -->
+  <div id="hp-panel" class="hidden">
+    <div class="hp-row">
+      <span class="hp-name self" id="self-hp-name">あなた</span>
+      <div class="hp-bg"><div class="hp-fill" id="local-hp-fill" style="width:100%"></div></div>
+      <span class="hp-val" id="local-hp-val">100</span>
+      <span class="vs-icon">⚔️</span>
+      <span class="hp-val" id="remote-hp-val">100</span>
+      <div class="hp-bg"><div class="hp-fill" id="remote-hp-fill" style="width:100%"></div></div>
+      <span class="hp-name" id="peer-hp-name">相手</span>
+    </div>
+    <div class="hp-sub">
+      <span id="expr-badge">顔を検出中...</span>
+      <span id="hp-status">😤 笑顔を維持せよ！</span>
+    </div>
+  </div>
+
+  <div class="msgs" id="msgs"></div>
+
+  <div class="chat-foot">
+    <div class="hints">
+      <span class="hint"><span class="kbk">Enter</span>送信</span>
+      <span class="hint"><span class="kbk">Shift+Enter</span>改行</span>
+      <span class="hint"><span class="kbk">/camera</span>写真撮影</span>
+      <span class="hint">画像をペーストで送信</span>
+    </div>
+    <div class="input-row">
+      <textarea id="chat-ta" rows="1" placeholder="メッセージを入力..."></textarea>
+      <button class="send-btn" onclick="sendText()" title="送信">➤</button>
+    </div>
+  </div>
+
+</div><!-- /chat -->
+
+
+<!-- ══════════════ CAMERA MODAL ══════════════ -->
+<div id="cam-modal" class="hidden">
+  <div class="cam-card">
+    <div class="cam-title">
+      <span>📷 写真を撮る</span>
+      <button class="cam-close" onclick="closeCamera()">✕</button>
+    </div>
+    <div class="cam-view">
+      <video id="cam-video" autoplay playsinline muted></video>
+      <canvas id="cam-canvas" class="hidden"></canvas>
+    </div>
+    <div class="cam-actions">
+      <button class="btn btn-ghost" id="btn-retake" onclick="retake()" style="display:none">↩ 撮り直す</button>
+      <button class="btn btn-blue" id="btn-capture" onclick="capture()">📸 撮影</button>
+      <button class="btn btn-pink" id="btn-send-photo" onclick="sendPhoto()" style="display:none">送信 →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div id="lightbox" class="hidden" onclick="hide('lightbox')">
+  <img id="lb-img" src="" alt="">
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- Hidden video for face detection (not displayed) -->
+<video id="face-video" style="position:fixed;opacity:0;pointer-events:none;width:1px;height:1px" autoplay playsinline muted></video>
+
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script>
+'use strict';
+
+// ── State ──────────────────────────────────────────────
+let pc = null, dc = null;
+let localName = '', remoteName = 'お相手';
+let isHost = false;
+let camStream = null, capturedImg = null;
+
+// ── Face Battle State ────────────────────────────────────
+const HAPPY_THRESHOLD = 0.3;
+const HP_DAMAGE = 3;
+const HP_HEAL   = 1;
+const DETECT_MS = 500;
+
+let localHp  = 100;
+let remoteHp = 100;
+let gameRunning  = false;
+let detectTimer  = null;
+let faceStream   = null;
+let modelsLoaded = false;
+
+const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights';
+Promise.all([
+  faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+  faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL),
+]).then(() => { modelsLoaded = true; });
+
+function hpColor(hp) {
+  return hp > 50 ? 'var(--green)' : hp > 25 ? '#f59e0b' : '#ef4444';
+}
+
+function updateHpDisplay() {
+  $('local-hp-val').textContent  = localHp;
+  $('local-hp-fill').style.width = localHp + '%';
+  $('local-hp-fill').style.background = hpColor(localHp);
+  $('remote-hp-val').textContent  = remoteHp;
+  $('remote-hp-fill').style.width = remoteHp + '%';
+  $('remote-hp-fill').style.background = hpColor(remoteHp);
+}
+
+async function startFaceBattle() {
+  localHp = 100; remoteHp = 100;
+  updateHpDisplay();
+  $('self-hp-name').textContent = localName || 'あなた';
+  $('peer-hp-name').textContent = remoteName;
+  show('hp-panel');
+
+  try {
+    faceStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+    $('face-video').srcObject = faceStream;
+    await new Promise(r => { $('face-video').onloadedmetadata = r; });
+  } catch (e) {
+    $('expr-badge').textContent = 'カメラ許可が必要です';
+    return;
+  }
+
+  if (!modelsLoaded) {
+    $('expr-badge').textContent = 'AIモデル読み込み中...';
+    await new Promise(r => { const t = setInterval(() => { if (modelsLoaded) { clearInterval(t); r(); } }, 200); });
+  }
+
+  gameRunning = true;
+  sysMsg('😤 笑顔バトル開始！笑顔スコア30%以上をキープせよ！');
+  runDetection();
+}
+
+async function runDetection() {
+  if (!gameRunning) return;
+  const fv = $('face-video');
+  if (fv.srcObject && fv.readyState >= 2) {
+    try {
+      const result = await faceapi
+        .detectSingleFace(fv, new faceapi.TinyFaceDetectorOptions())
+        .withFaceExpressions();
+
+      if (result) {
+        const happy = result.expressions.happy;
+        const top   = Object.entries(result.expressions).sort((a,b) => b[1]-a[1])[0];
+        $('expr-badge').textContent = `${top[0]}  😊 ${(happy*100).toFixed(0)}%`;
+        localHp = happy >= HAPPY_THRESHOLD
+          ? Math.min(100, localHp + HP_HEAL)
+          : Math.max(0, localHp - HP_DAMAGE);
+      } else {
+        $('expr-badge').textContent = '顔が検出されません 😶';
+        localHp = Math.max(0, localHp - HP_DAMAGE);
+      }
+
+      updateHpDisplay();
+      if (dc?.readyState === 'open') dc.send(JSON.stringify({ type: 'hp', value: localHp }));
+
+      if (localHp <= 0) { battleOver(false); return; }
+    } catch (_) {}
+  }
+  detectTimer = setTimeout(runDetection, DETECT_MS);
+}
+
+function battleOver(won) {
+  if (!gameRunning) return;
+  gameRunning = false;
+  clearTimeout(detectTimer);
+  if (faceStream) { faceStream.getTracks().forEach(t => t.stop()); faceStream = null; }
+
+  if (won) {
+    $('hp-status').textContent = '🏆 あなたの勝ち！';
+    sysMsg('🏆 相手が笑えなくなりました！あなたの勝ち！');
+  } else {
+    $('hp-status').textContent = '😭 あなたの負け！';
+    sysMsg('😭 笑顔が足りませんでした... 負けです。');
+    if (dc?.readyState === 'open') dc.send(JSON.stringify({ type: 'game_over' }));
+    setTimeout(() => { if (pc) pc.close(); }, 1000);
+  }
+}
+
+const ICE = { iceServers: [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+]};
+
+// ── Helpers ─────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+function show(id) { $(id)?.classList.remove('hidden'); }
+function hide(id) { $(id)?.classList.add('hidden'); }
+
+function esc(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function ts() { return new Date().toISOString(); }
+
+function toast(msg) {
+  $('toast').textContent = msg;
+  $('toast').classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => $('toast').classList.remove('show'), 2600);
+}
+
+function autoH(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 140) + 'px';
+}
+
+function setStep(n) {
+  for (let i = 1; i <= 3; i++) {
+    const d = $(`d${i}`), l = $(`l${i}`);
+    if (!d) continue;
+    d.className = 's-dot';
+    if      (i < n)  { d.classList.add('done');   d.textContent = '✓'; }
+    else if (i === n) { d.classList.add('active'); d.textContent = i;   }
+    else              { d.textContent = i; }
+    if (l) l.className = i < n ? 's-line done' : 's-line';
+  }
+}
+
+function copyField(taId, btnId) {
+  const val = $(taId).value;
+  if (!val) return;
+  navigator.clipboard.writeText(val).then(() => {
+    const btn = $(btnId);
+    const orig = btn.textContent;
+    btn.textContent = '✅ コピーしました';
+    btn.classList.add('ok');
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove('ok'); }, 2000);
+  }).catch(() => toast('コピーに失敗しました'));
+}
+
+// ── Setup flow ───────────────────────────────────────────
+function pickRole(role) {
+  isHost = role === 'host';
+  hide('s0');
+  show('stepper');
+  show('s1');
+  setStep(1);
+  $('name-inp').focus();
+}
+
+function submitName() {
+  const n = $('name-inp').value.trim();
+  if (!n) { toast('名前を入力してください'); return; }
+  localName = n;
+  hide('s1');
+  setStep(2);
+  if (isHost) { show('s2h'); initHost(); }
+  else        { show('s2g'); }
+}
+
+// ── WebRTC: Host ─────────────────────────────────────────
+function initHost() {
+  pc = new RTCPeerConnection(ICE);
+  dc = pc.createDataChannel('chat');
+  setupDC(dc);
+  monitorConn();
+
+  pc.onicegatheringstatechange = () => {
+    if (pc.iceGatheringState !== 'complete') return;
+    $('offer-ta').value = JSON.stringify(pc.localDescription);
+    hide('offer-load');
+    show('offer-ready');
+  };
+
+  pc.createOffer()
+    .then(o => pc.setLocalDescription(o))
+    .catch(e => toast('オファー生成失敗: ' + e.message));
+}
+
+function goStep3Host() {
+  hide('s2h');
+  setStep(3);
+  show('s3h');
+  $('paste-ans-ta').focus();
+}
+
+async function connectAnswer() {
+  const raw = $('paste-ans-ta').value.trim();
+  if (!raw) { toast('アンサーコードを貼り付けてください'); return; }
+  let ans;
+  try { ans = JSON.parse(raw); } catch { toast('形式が正しくありません'); return; }
+  try { await pc.setRemoteDescription(ans); }
+  catch(e) { toast('エラー: ' + e.message); }
+}
+
+// ── WebRTC: Guest ────────────────────────────────────────
+async function processOffer() {
+  const raw = $('paste-offer-ta').value.trim();
+  if (!raw) { toast('オファーコードを貼り付けてください'); return; }
+  let offer;
+  try { offer = JSON.parse(raw); } catch { toast('形式が正しくありません'); return; }
+
+  pc = new RTCPeerConnection(ICE);
+  pc.ondatachannel = e => { dc = e.channel; setupDC(dc); };
+  monitorConn();
+
+  pc.onicegatheringstatechange = () => {
+    if (pc.iceGatheringState !== 'complete') return;
+    $('answer-ta').value = JSON.stringify(pc.localDescription);
+    show('answer-block');
+  };
+
+  try {
+    await pc.setRemoteDescription(offer);
+    const ans = await pc.createAnswer();
+    await pc.setLocalDescription(ans);
+  } catch(e) { toast('エラー: ' + e.message); }
+}
+
+// ── DataChannel ──────────────────────────────────────────
+function setupDC(ch) {
+  ch.onopen = () => {
+    ch.send(JSON.stringify({ type:'hello', name: localName }));
+    openChat();
+  };
+  ch.onmessage = e => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'hello') {
+      remoteName = msg.name;
+      $('peer-name').textContent = remoteName;
+      $('peer-av').textContent   = remoteName[0].toUpperCase();
+      $('peer-hp-name').textContent = remoteName;
+      sysMsg(`${esc(remoteName)} が参加しました`);
+    } else if (msg.type === 'hp') {
+      remoteHp = Math.max(0, msg.value);
+      updateHpDisplay();
+      if (remoteHp <= 0 && gameRunning) battleOver(true);
+    } else if (msg.type === 'game_over') {
+      if (gameRunning) battleOver(true);
+    } else {
+      renderMsg(msg, false);
+    }
+  };
+  ch.onclose = () => sysMsg('接続が切断されました');
+}
+
+function monitorConn() {
+  pc.onconnectionstatechange = () => {
+    if (pc.connectionState === 'failed') toast('接続に失敗しました');
+  };
+}
+
+// ── Chat open ────────────────────────────────────────────
+function openChat() {
+  hide('setup');
+  show('chat');
+  $('self-av').textContent   = localName[0].toUpperCase();
+  $('self-name').textContent = localName;
+  sysMsg('🎉 接続が確立されました');
+  $('chat-ta').focus();
+  startFaceBattle();
+}
+
+// ── Send ─────────────────────────────────────────────────
+function sendText() {
+  const ta = $('chat-ta');
+  const raw = ta.value;
+  if (!raw.trim()) return;
+
+  if (raw.trimStart().startsWith('/camera')) {
+    ta.value = ''; autoH(ta);
+    openCamera();
+    return;
+  }
+
+  const msg = { type:'text', content: raw, name: localName, time: ts() };
+  safeSend(msg);
+  renderMsg(msg, true);
+  ta.value = ''; autoH(ta);
+}
+
+function sendImg(dataUrl) {
+  const img = new Image();
+  img.onload = () => {
+    const MAX = 720;
+    let w = img.width, h = img.height;
+    if (w > MAX || h > MAX) {
+      const r = Math.min(MAX/w, MAX/h);
+      w = Math.round(w*r); h = Math.round(h*r);
+    }
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    c.getContext('2d').drawImage(img, 0, 0, w, h);
+    const compressed = c.toDataURL('image/jpeg', 0.72);
+    const msg = { type:'image', content: compressed, name: localName, time: ts() };
+    safeSend(msg);
+    renderMsg(msg, true);
+  };
+  img.src = dataUrl;
+}
+
+function safeSend(msg) {
+  if (!dc || dc.readyState !== 'open') { toast('まだ接続されていません'); return; }
+  dc.send(JSON.stringify(msg));
+}
+
+// ── Render messages ──────────────────────────────────────
+function renderMsg(msg, isSelf) {
+  const area = $('msgs');
+  const row = document.createElement('div');
+  row.className = `msg-row ${isSelf ? 'self' : 'peer'}`;
+
+  const initials = (msg.name||'?')[0].toUpperCase();
+  const avCls = isSelf ? 'av-pink' : 'av-blue';
+  const t = msg.time ? new Date(msg.time).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}) : '';
+
+  let inner = '';
+  if (msg.type === 'image') {
+    inner = `<img class="bubble-img" src="${esc(msg.content)}" alt="画像" onclick="openLb(this.src)">`;
+  } else {
+    inner = `<div class="bubble">${esc(msg.content)}</div>`;
+  }
+
+  row.innerHTML = `
+    <div class="msg-av ${avCls}">${initials}</div>
+    <div class="msg-body">
+      <span class="msg-name">${esc(msg.name)}</span>
+      ${inner}
+      <span class="msg-time">${t}</span>
+    </div>`;
+
+  area.appendChild(row);
+  area.scrollTop = area.scrollHeight;
+}
+
+function sysMsg(text) {
+  const area = $('msgs');
+  const div = document.createElement('div');
+  div.className = 'sys-msg';
+  div.innerHTML = `<span>${esc(text)}</span>`;
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+}
+
+// ── Lightbox ─────────────────────────────────────────────
+function openLb(src) {
+  $('lb-img').src = src;
+  show('lightbox');
+}
+
+// ── Camera ───────────────────────────────────────────────
+async function openCamera() {
+  show('cam-modal');
+  $('btn-capture').style.display   = '';
+  $('btn-retake').style.display    = 'none';
+  $('btn-send-photo').style.display= 'none';
+  $('cam-canvas').classList.add('hidden');
+  $('cam-video').style.display = 'block';
+  capturedImg = null;
+
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({ video: { width:640, height:480, facingMode:'user' } });
+    $('cam-video').srcObject = camStream;
+  } catch(e) {
+    toast('カメラにアクセスできません');
+    closeCamera();
+  }
+}
+
+function capture() {
+  const v = $('cam-video'), c = $('cam-canvas');
+  c.width  = v.videoWidth  || 640;
+  c.height = v.videoHeight || 480;
+  c.getContext('2d').drawImage(v, 0, 0);
+  capturedImg = c.toDataURL('image/jpeg', 0.85);
+
+  v.style.display = 'none';
+  c.classList.remove('hidden');
+  $('btn-capture').style.display    = 'none';
+  $('btn-retake').style.display     = '';
+  $('btn-send-photo').style.display = '';
+}
+
+function retake() {
+  $('cam-video').style.display = 'block';
+  $('cam-canvas').classList.add('hidden');
+  capturedImg = null;
+  $('btn-capture').style.display    = '';
+  $('btn-retake').style.display     = 'none';
+  $('btn-send-photo').style.display = 'none';
+}
+
+function sendPhoto() {
+  if (capturedImg) sendImg(capturedImg);
+  closeCamera();
+}
+
+function closeCamera() {
+  if (camStream) { camStream.getTracks().forEach(t=>t.stop()); camStream = null; }
+  hide('cam-modal');
+}
+
+// ── Events ───────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const ta = $('chat-ta');
+
+  ta.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendText(); }
+  });
+  ta.addEventListener('input', () => autoH(ta));
+
+  // Paste image
+  ta.addEventListener('paste', e => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+        const reader = new FileReader();
+        reader.onload = ev => sendImg(ev.target.result);
+        reader.readAsDataURL(item.getAsFile());
+        return;
+      }
+    }
+  });
+
+  // Name input: Enter to continue
+  $('name-inp').addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitName();
+  });
+});
+</script>
+</body>
+</html>

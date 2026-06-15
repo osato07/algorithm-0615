@@ -1,0 +1,41 @@
+[
+  {
+    "id": "handgun",
+    "name": "ハンドガン",
+    "damage": 20,
+    "fireRateMs": 400,
+    "projectileSpeed": 600,
+    "range": 500,
+    "magazineSize": 12,
+    "reloadTimeMs": 1200,
+    "price": 0,
+    "projectileCount": 1,
+    "spreadAngle": 0.04
+  },
+  {
+    "id": "shotgun",
+    "name": "ショットガン",
+    "damage": 18,
+    "fireRateMs": 900,
+    "projectileSpeed": 420,
+    "range": 280,
+    "magazineSize": 6,
+    "reloadTimeMs": 2000,
+    "price": 300,
+    "projectileCount": 5,
+    "spreadAngle": 0.32
+  },
+  {
+    "id": "rifle",
+    "name": "ライフル",
+    "damage": 28,
+    "fireRateMs": 150,
+    "projectileSpeed": 900,
+    "range": 900,
+    "magazineSize": 30,
+    "reloadTimeMs": 2200,
+    "price": 600,
+    "projectileCount": 1,
+    "spreadAngle": 0.015
+  }
+]
