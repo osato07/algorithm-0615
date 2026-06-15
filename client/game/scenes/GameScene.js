@@ -8,20 +8,22 @@ class GameScene extends Phaser.Scene {
 
   // ─────────────────────────────────────────────────────────
   create() {
-    this._buildMap();
-    this._buildPlayer();
-    this._setupCamera();
-    this._setupInput();
-    this._setupSync();
-    this._setupWebRTC();
-    this._buildHUD();
-
     this._remotePlayers = {};   // userId -> RemotePlayer
     this._enemies       = {};   // enemyId -> EnemySprite
     this._bullets       = {};   // local bullets (visual only)
     this._lastMoveSent  = 0;
     this._lastAngle     = 0;
     this._shop          = null; // active shop ui
+    this._sfx           = new SoundFX();
+
+    this._buildMap();
+    this._buildPlayer();
+    this._setupCamera();
+    this._setupInput();
+    this._buildHUD();
+    this._setupWebRTC();
+    this._setupSync();
+    this._sync.sendReady();
   }
 
   // ─── マップ ──────────────────────────────────────────────
@@ -147,6 +149,7 @@ class GameScene extends Phaser.Scene {
       ltArr: Phaser.Input.Keyboard.KeyCodes.LEFT,
       rtArr: Phaser.Input.Keyboard.KeyCodes.RIGHT,
       reload:Phaser.Input.Keyboard.KeyCodes.R,
+      shop:  Phaser.Input.Keyboard.KeyCodes.E,
       one:   Phaser.Input.Keyboard.KeyCodes.ONE,
       two:   Phaser.Input.Keyboard.KeyCodes.TWO,
       three: Phaser.Input.Keyboard.KeyCodes.THREE,
@@ -154,9 +157,18 @@ class GameScene extends Phaser.Scene {
 
     this.input.on('pointerdown', (ptr) => {
       if (ptr.leftButtonDown()) {
-        this._audioManager?.resume(); // AudioContext を有効化
+        this._audioManager?.resume();
+        this._sfx.resume();
         this._tryShoot();
       }
+    });
+
+    this._onGlobalKeyDown = (e) => {
+      if (e.code === 'KeyE') this._openShop();
+    };
+    window.addEventListener('keydown', this._onGlobalKeyDown);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      window.removeEventListener('keydown', this._onGlobalKeyDown);
     });
   }
 
@@ -167,7 +179,8 @@ class GameScene extends Phaser.Scene {
     s.addEventListener('roomState', (e) => {
       const { players, enemies } = e.detail;
       for (const [uid, p] of Object.entries(players)) {
-        if (uid !== s.userId) this._spawnRemotePlayer(uid, p);
+        if (uid === s.userId) this._applyInitialPlayerState(p);
+        else this._spawnRemotePlayer(uid, p);
       }
       for (const e2 of Object.values(enemies)) this._syncEnemy(e2);
     });
@@ -205,13 +218,30 @@ class GameScene extends Phaser.Scene {
 
     s.addEventListener('damaged', (e) => {
       this._player.hp = e.detail.hp;
+      this._sfx.damage();
       this._updateHUD();
       this._flashDamage();
+      if (e.detail.knockbackForce) {
+        const a = e.detail.knockbackAngle;
+        const f = e.detail.knockbackForce;
+        const dur = 220;
+        this._knockback = {
+          vx: Math.cos(a) * f,
+          vy: Math.sin(a) * f,
+          until: Date.now() + dur,
+          duration: dur,
+        };
+      }
     });
 
     s.addEventListener('playerDied', (e) => {
       if (e.detail.userId === s.userId) this._onDeath();
       else this._remotePlayers[e.detail.userId]?.onDeath();
+    });
+
+    s.addEventListener('playerHit', (e) => {
+      const { userId, hp } = e.detail;
+      if (userId !== s.userId) this._remotePlayers[userId]?.onHit(hp);
     });
 
     s.addEventListener('playerRespawned', (e) => {
@@ -232,28 +262,32 @@ class GameScene extends Phaser.Scene {
       this._player.exp   = d.exp;
       this._player.coins = d.coins;
       this._player.level = d.level;
-      if (d.leveledUp) this._showLevelUp(d.level);
+      if (d.leveledUp) { this._sfx.levelUp(); this._showLevelUp(d.level); }
       this._updateHUD();
     });
 
     s.addEventListener('reloadOk', (e) => {
       this._player.reloading = true;
+      this._sfx.reloadStart();
       this.time.delayedCall(e.detail.reloadTimeMs, () => {
         this._player.reloading = false;
         const WDEFS = { handgun: 12, shotgun: 6, rifle: 30 };
         this._player.magazine = WDEFS[this._player.equippedWeaponId] ?? 10;
+        this._sfx.reloadDone();
         this._updateHUD();
       });
     });
 
     s.addEventListener('weaponSwitched', (e) => {
       this._player.equippedWeaponId = e.detail.weaponId;
+      this._sfx.weaponSwitch();
       this._updateHUD();
     });
 
     s.addEventListener('buyOk', (e) => {
       this._player.coins = e.detail.coins;
       this._player.ownedWeaponIds = e.detail.ownedWeaponIds;
+      this._sfx.buySuccess();
       this._updateHUD();
       this._shop?.refresh(this._player);
     });
@@ -269,7 +303,7 @@ class GameScene extends Phaser.Scene {
 
     s.addEventListener('enemyDied', (e) => {
       const spr = this._enemies[e.detail.enemyId];
-      if (spr) spr.onDeath();
+      if (spr) { spr.onDeath(); this._sfx.enemyKilled(); }
     });
 
     s.addEventListener('enemyRespawn', (e) => {
@@ -336,6 +370,7 @@ class GameScene extends Phaser.Scene {
     if (!this._player.isAlive) return;
     if (this._player.reloading) return;
     if (this._player.magazine <= 0) {
+      this._sfx.emptyClick();
       this._sync.sendReload();
       return;
     }
@@ -352,6 +387,7 @@ class GameScene extends Phaser.Scene {
     const wy    = ptr.worldY;
     const angle = Math.atan2(wy - this._player.y, wx - this._player.x);
 
+    this._sfx.shoot(this._player.equippedWeaponId);
     this._sync.sendShoot(angle);
     this._spawnBulletVisual(this._player.x, this._player.y, angle, this._player.equippedWeaponId, true);
     this._updateHUD();
@@ -380,8 +416,11 @@ class GameScene extends Phaser.Scene {
 
       const bid = `${Date.now()}_${i}`;
       this._bullets[bid] = b;
+      this.physics.add.collider(b, this._walls, () => {
+        if (b.active) b.destroy();
+        delete this._bullets[bid];
+      });
 
-      const traveled = { d: 0 };
       // 射程を超えたら消す
       this.time.addEvent({
         delay: (range / speed) * 1000,
@@ -439,10 +478,14 @@ class GameScene extends Phaser.Scene {
     this.input.keyboard.on('keydown-E', () => {
       this._openShop();
     });
+    this.input.keyboard.on('keydown', (e) => {
+      if (e.code === 'KeyE') this._openShop();
+    });
     this.input.keyboard.on('keydown-ONE',   () => this._switchWeapon('handgun'));
     this.input.keyboard.on('keydown-TWO',   () => this._switchWeapon('shotgun'));
     this.input.keyboard.on('keydown-THREE', () => this._switchWeapon('rifle'));
     this.input.keyboard.on('keydown-R',     () => {
+      this._sfx.resume();
       if (!this._player.reloading) this._sync.sendReload();
     });
 
@@ -482,6 +525,23 @@ class GameScene extends Phaser.Scene {
     });
   }
 
+  _applyInitialPlayerState(state) {
+    this._playerSprite.setPosition(state.x, state.y);
+    Object.assign(this._player, {
+      x: state.x,
+      y: state.y,
+      rotation: state.rotation ?? 0,
+      hp: state.hp,
+      maxHp: state.maxHp,
+      level: state.level,
+      isAlive: state.isAlive,
+      equippedWeaponId: state.equippedWeaponId,
+    });
+    this._playerSprite.setAlpha(state.isAlive ? 1 : 0.3);
+    this._hudDeath?.setVisible(!state.isAlive);
+    this._updateHUD();
+  }
+
   _switchWeapon(id) {
     if (!this._player.ownedWeaponIds.includes(id)) {
       this._showMessage(`${id} は所持していません`, '#ef4444');
@@ -499,6 +559,7 @@ class GameScene extends Phaser.Scene {
 
   // ─── メインループ ────────────────────────────────────────
   update(time, delta) {
+    this._handleActionKeys();
     if (!this._player.isAlive) return;
 
     this._handleMovement(delta);
@@ -507,6 +568,13 @@ class GameScene extends Phaser.Scene {
     this._updateVideoOverlay();
     this._updateAudio();
     this._checkShopHint();
+  }
+
+  _handleActionKeys() {
+    const k = this._keys;
+    if (Phaser.Input.Keyboard.JustDown(k.shop)) {
+      this._openShop();
+    }
   }
 
   _handleMovement(delta) {
@@ -521,7 +589,14 @@ class GameScene extends Phaser.Scene {
 
     if (vx !== 0 && vy !== 0) { vx *= 0.707; vy *= 0.707; }
 
-    this._playerSprite.setVelocity(vx * spd, vy * spd);
+    let kbx = 0, kby = 0;
+    if (this._knockback && Date.now() < this._knockback.until) {
+      const t = (this._knockback.until - Date.now()) / this._knockback.duration;
+      kbx = this._knockback.vx * t;
+      kby = this._knockback.vy * t;
+    }
+
+    this._playerSprite.setVelocity(vx * spd + kbx, vy * spd + kby);
     this._player.x = this._playerSprite.x;
     this._player.y = this._playerSprite.y;
 

@@ -83,6 +83,7 @@
       font-size: 13px; font-weight: 700;
       color: var(--muted);
       transition: all .3s;
+      position: relative;
     }
     .s-dot.active {
       border-color: var(--pink);
@@ -166,50 +167,8 @@
       font-family: inherit;
     }
     .inp:focus { border-color: var(--pink); box-shadow: 0 0 0 3px var(--pink-glow); }
+    textarea.inp { resize: vertical; min-height: 110px; font-family: 'SF Mono','Fira Code',monospace; font-size: 11.5px; line-height: 1.55; }
     .fg { margin-bottom: 18px; }
-
-    /* Room code input */
-    .inp-code {
-      text-transform: uppercase;
-      font-size: 26px;
-      letter-spacing: 6px;
-      font-family: 'SF Mono','Fira Code',monospace;
-      text-align: center;
-    }
-
-    /* Room code display */
-    .room-code {
-      font-size: 36px;
-      font-weight: 900;
-      letter-spacing: 8px;
-      font-family: 'SF Mono','Fira Code',monospace;
-      color: var(--pink);
-      text-align: center;
-      padding: 20px 16px;
-      background: rgba(236,72,153,.07);
-      border: 2px solid rgba(236,72,153,.2);
-      border-radius: var(--rs);
-      margin-bottom: 12px;
-      animation: pulse-code 2.5s ease-in-out infinite;
-    }
-    @keyframes pulse-code {
-      0%,100% { box-shadow: 0 0 0 0 transparent; border-color: rgba(236,72,153,.2); }
-      50%      { box-shadow: 0 0 22px 2px var(--pink-glow); border-color: rgba(236,72,153,.5); }
-    }
-
-    .share-url {
-      font-size: 11px;
-      color: var(--muted);
-      word-break: break-all;
-      padding: 8px 12px;
-      background: rgba(255,255,255,.03);
-      border-radius: var(--rs);
-      border: 1px solid var(--border);
-      font-family: 'SF Mono','Fira Code',monospace;
-      margin-bottom: 14px;
-      line-height: 1.6;
-      user-select: all;
-    }
 
     /* Buttons */
     .btn {
@@ -490,14 +449,16 @@
 
   <div class="setup-logo">
     <h1>💬 P2P Chat</h1>
-    <p>ルームコードを共有するだけで直接つながるチャット</p>
+    <p>サーバー不要・ブラウザだけで直接つながるチャット</p>
   </div>
 
-  <!-- Step indicator (2 steps) -->
+  <!-- Step indicator -->
   <div id="stepper" class="hidden">
     <div class="s-dot" id="d1">1</div>
     <div class="s-line" id="l1"></div>
     <div class="s-dot" id="d2">2</div>
+    <div class="s-line" id="l2"></div>
+    <div class="s-dot" id="d3">3</div>
   </div>
 
   <!-- STEP 0: Role -->
@@ -508,12 +469,12 @@
       <button class="role-btn host" onclick="pickRole('host')">
         <span class="emoji">📡</span>
         <strong>招待する</strong>
-        <small>ルームを作って<br>コードを相手に送る</small>
+        <small>オファーを作って<br>相手に送る</small>
       </button>
       <button class="role-btn guest" onclick="pickRole('guest')">
         <span class="emoji">🔗</span>
         <strong>参加する</strong>
-        <small>ルームコードを入力<br>して接続する</small>
+        <small>オファーを受け取って<br>接続する</small>
       </button>
     </div>
   </div>
@@ -521,7 +482,7 @@
   <!-- STEP 1: Name -->
   <div id="s1" class="card hidden">
     <div class="card-head"><div class="card-icon">👤</div><h2>あなたの名前</h2></div>
-    <div class="card-desc" id="s1-desc">チャットで表示されるニックネームを決めてください。</div>
+    <div class="card-desc">チャットで表示されるニックネームを決めてください。名前を決めてから接続が開始します。</div>
     <div class="fg">
       <label class="lbl">ニックネーム</label>
       <input id="name-inp" class="inp" type="text" placeholder="例：さくら" maxlength="20" autocomplete="off">
@@ -529,42 +490,57 @@
     <button class="btn btn-pink btn-full" onclick="submitName()">次へ →</button>
   </div>
 
-  <!-- STEP 2-HOST: Show room code -->
+  <!-- STEP 2-HOST: Generate offer -->
   <div id="s2h" class="card hidden">
-    <div class="card-head"><div class="card-icon">📡</div><h2>ルームを作成</h2></div>
-    <div id="room-load" class="loading-box">
+    <div class="card-head"><div class="card-icon">📋</div><h2>オファーを作成</h2></div>
+    <div class="card-desc">オファーコードをコピーして、LINEやメールなどで相手に送ってください。</div>
+    <div id="offer-load" class="loading-box">
       <div class="spin"></div>
-      <span>ルームを準備中...</span>
+      <span>オファーを生成中...</span>
     </div>
-    <div id="room-ready" class="hidden">
-      <p class="card-desc">このルームコードを相手に送ってください。</p>
-      <div class="room-code" id="room-code-display">------</div>
-      <div class="share-url" id="share-url-display"></div>
-      <div class="btn-row" style="margin-bottom:0">
-        <button class="btn btn-ghost" id="copy-room-btn" onclick="copyRoomCode()">📋 コードをコピー</button>
-        <button class="btn btn-ghost" id="copy-url-btn" onclick="copyRoomUrl()">🔗 URLをコピー</button>
+    <div id="offer-ready" class="hidden">
+      <div class="fg">
+        <label class="lbl">オファーコード（コピーして相手に送る）</label>
+        <textarea id="offer-ta" class="inp" readonly></textarea>
       </div>
-      <hr class="divider">
-      <div class="loading-box" style="padding:10px 0 0">
-        <div class="spin"></div>
-        <span>相手の参加を待っています...</span>
+      <div class="btn-row">
+        <button class="btn btn-ghost" id="copy-offer-btn" onclick="copyField('offer-ta','copy-offer-btn')">📋 コピー</button>
+        <button class="btn btn-pink" onclick="goStep3Host()">コピーした → 次へ</button>
       </div>
     </div>
   </div>
 
-  <!-- STEP 2-GUEST: Enter room code -->
+  <!-- STEP 2-GUEST: Paste offer, get answer -->
   <div id="s2g" class="card hidden">
-    <div class="card-head"><div class="card-icon">🔗</div><h2>ルームに参加</h2></div>
-    <div class="card-desc">招待者からもらったルームコード（6文字）を入力してください。</div>
+    <div class="card-head"><div class="card-icon">📩</div><h2>オファーを貼り付け</h2></div>
+    <div class="card-desc">招待者からもらったオファーコードを貼り付けてください。</div>
     <div class="fg">
-      <label class="lbl">ルームコード</label>
-      <input id="room-inp" class="inp inp-code" type="text" placeholder="ABC123" maxlength="6" autocomplete="off">
+      <label class="lbl">オファーコード</label>
+      <textarea id="paste-offer-ta" class="inp" placeholder="ここに貼り付け..."></textarea>
     </div>
-    <button class="btn btn-blue btn-full" onclick="joinRoom()">接続する →</button>
-    <div id="join-status" class="loading-box hidden" style="margin-top:14px">
-      <div class="spin"></div>
-      <span>接続中...</span>
+    <button class="btn btn-blue btn-full" onclick="processOffer()">アンサーを生成 →</button>
+
+    <div id="answer-block" class="hidden">
+      <hr class="divider">
+      <div class="card-head" style="margin-bottom:6px"><div class="card-icon">✅</div><h2>アンサーをコピー</h2></div>
+      <div class="card-desc">このアンサーコードを相手（招待者）に送り返してください。相手がセットすると自動で接続されます。</div>
+      <div class="fg">
+        <label class="lbl">アンサーコード</label>
+        <textarea id="answer-ta" class="inp" readonly></textarea>
+      </div>
+      <button class="btn btn-ghost" id="copy-ans-btn" onclick="copyField('answer-ta','copy-ans-btn')">📋 コピー</button>
     </div>
+  </div>
+
+  <!-- STEP 3-HOST: Paste answer -->
+  <div id="s3h" class="card hidden">
+    <div class="card-head"><div class="card-icon">🔑</div><h2>アンサーを貼り付け</h2></div>
+    <div class="card-desc">相手から返ってきたアンサーコードを貼り付けて接続を完了します。</div>
+    <div class="fg">
+      <label class="lbl">アンサーコード</label>
+      <textarea id="paste-ans-ta" class="inp" placeholder="ここに貼り付け..."></textarea>
+    </div>
+    <button class="btn btn-pink btn-full" onclick="connectAnswer()">接続する 🎉</button>
   </div>
 
 </div><!-- /setup -->
@@ -651,36 +627,18 @@
 <!-- Toast -->
 <div id="toast"></div>
 
-<!-- Hidden video for face detection -->
+<!-- Hidden video for face detection (not displayed) -->
 <video id="face-video" style="position:fixed;opacity:0;pointer-events:none;width:1px;height:1px" autoplay playsinline muted></video>
 
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-<script type="module">
+<script>
 'use strict';
-
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
-import { getDatabase, ref, set, get, onValue, remove } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-database.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyBJhJsDR1-y1QPR_Z3wJkTcGTFYU9d2tjo",
-  authDomain: "webrtczom.firebaseapp.com",
-  databaseURL: "https://webrtczom-default-rtdb.firebaseio.com",
-  projectId: "webrtczom",
-  storageBucket: "webrtczom.firebasestorage.app",
-  messagingSenderId: "377325626358",
-  appId: "1:377325626358:web:c74c096d440f9319389dd7"
-};
-
-const fbApp = initializeApp(firebaseConfig);
-const db = getDatabase(fbApp);
 
 // ── State ──────────────────────────────────────────────
 let pc = null, dc = null;
 let localName = '', remoteName = 'お相手';
 let isHost = false;
-let roomCode = '';
 let camStream = null, capturedImg = null;
-let answerUnsub = null;
 
 // ── Face Battle State ────────────────────────────────────
 const HAPPY_THRESHOLD = 0.3;
@@ -817,7 +775,7 @@ function autoH(el) {
 }
 
 function setStep(n) {
-  for (let i = 1; i <= 2; i++) {
+  for (let i = 1; i <= 3; i++) {
     const d = $(`d${i}`), l = $(`l${i}`);
     if (!d) continue;
     d.className = 's-dot';
@@ -828,9 +786,16 @@ function setStep(n) {
   }
 }
 
-function generateCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  return Array.from({length:6}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+function copyField(taId, btnId) {
+  const val = $(taId).value;
+  if (!val) return;
+  navigator.clipboard.writeText(val).then(() => {
+    const btn = $(btnId);
+    const orig = btn.textContent;
+    btn.textContent = '✅ コピーしました';
+    btn.classList.add('ok');
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove('ok'); }, 2000);
+  }).catch(() => toast('コピーに失敗しました'));
 }
 
 // ── Setup flow ───────────────────────────────────────────
@@ -849,138 +814,67 @@ function submitName() {
   localName = n;
   hide('s1');
   setStep(2);
-  if (isHost) {
-    show('s2h');
-    initHost();
-  } else {
-    show('s2g');
-    const urlRoom = new URLSearchParams(location.search).get('room');
-    if (urlRoom) $('room-inp').value = urlRoom.toUpperCase();
-    $('room-inp').focus();
-  }
+  if (isHost) { show('s2h'); initHost(); }
+  else        { show('s2g'); }
 }
 
-// ── WebRTC: Host (Firebase signaling) ───────────────────
-async function initHost() {
-  roomCode = generateCode();
-
+// ── WebRTC: Host ─────────────────────────────────────────
+function initHost() {
   pc = new RTCPeerConnection(ICE);
   dc = pc.createDataChannel('chat');
   setupDC(dc);
   monitorConn();
 
-  let desc;
-  try {
-    desc = await new Promise((resolve, reject) => {
-      pc.onicegatheringstatechange = () => {
-        if (pc.iceGatheringState === 'complete') resolve(pc.localDescription);
-      };
-      pc.createOffer()
-        .then(o => pc.setLocalDescription(o))
-        .catch(reject);
-    });
-  } catch(e) {
-    toast('オファー生成失敗: ' + e.message);
-    return;
-  }
+  pc.onicegatheringstatechange = () => {
+    if (pc.iceGatheringState !== 'complete') return;
+    $('offer-ta').value = JSON.stringify(pc.localDescription);
+    hide('offer-load');
+    show('offer-ready');
+  };
 
-  try {
-    await set(ref(db, `rooms/${roomCode}`), {
-      offer: { type: desc.type, sdp: desc.sdp },
-      created: Date.now()
-    });
-  } catch(e) {
-    toast('Firebase 書き込みエラー: ' + e.message);
-    return;
-  }
-
-  $('room-code-display').textContent = roomCode;
-  $('share-url-display').textContent = location.href.split('?')[0] + '?room=' + roomCode;
-  hide('room-load');
-  show('room-ready');
-
-  // Listen for guest's answer
-  answerUnsub = onValue(ref(db, `rooms/${roomCode}/answer`), async snap => {
-    if (!snap.exists() || pc.currentRemoteDescription) return;
-    try {
-      await pc.setRemoteDescription(snap.val());
-      if (answerUnsub) { answerUnsub(); answerUnsub = null; }
-      // Clean up room data after connection
-      setTimeout(() => remove(ref(db, `rooms/${roomCode}`)).catch(() => {}), 5000);
-    } catch(e) {
-      toast('接続エラー: ' + e.message);
-    }
-  });
+  pc.createOffer()
+    .then(o => pc.setLocalDescription(o))
+    .catch(e => toast('オファー生成失敗: ' + e.message));
 }
 
-// ── WebRTC: Guest (Firebase signaling) ──────────────────
-async function joinRoom() {
-  const code = $('room-inp').value.trim().toUpperCase();
-  if (code.length !== 6) { toast('6文字のルームコードを入力してください'); return; }
-  roomCode = code;
-  show('join-status');
+function goStep3Host() {
+  hide('s2h');
+  setStep(3);
+  show('s3h');
+  $('paste-ans-ta').focus();
+}
+
+async function connectAnswer() {
+  const raw = $('paste-ans-ta').value.trim();
+  if (!raw) { toast('アンサーコードを貼り付けてください'); return; }
+  let ans;
+  try { ans = JSON.parse(raw); } catch { toast('形式が正しくありません'); return; }
+  try { await pc.setRemoteDescription(ans); }
+  catch(e) { toast('エラー: ' + e.message); }
+}
+
+// ── WebRTC: Guest ────────────────────────────────────────
+async function processOffer() {
+  const raw = $('paste-offer-ta').value.trim();
+  if (!raw) { toast('オファーコードを貼り付けてください'); return; }
+  let offer;
+  try { offer = JSON.parse(raw); } catch { toast('形式が正しくありません'); return; }
 
   pc = new RTCPeerConnection(ICE);
   pc.ondatachannel = e => { dc = e.channel; setupDC(dc); };
   monitorConn();
 
-  let snap;
-  try {
-    snap = await get(ref(db, `rooms/${roomCode}/offer`));
-  } catch(e) {
-    toast('Firebase エラー: ' + e.message);
-    hide('join-status');
-    return;
-  }
-
-  if (!snap.exists()) {
-    toast('ルームが見つかりません。コードを確認してください');
-    hide('join-status');
-    return;
-  }
-
-  // Write answer after ICE gathering completes
-  pc.onicegatheringstatechange = async () => {
+  pc.onicegatheringstatechange = () => {
     if (pc.iceGatheringState !== 'complete') return;
-    try {
-      await set(ref(db, `rooms/${roomCode}/answer`), {
-        type: pc.localDescription.type,
-        sdp: pc.localDescription.sdp
-      });
-    } catch(e) {
-      toast('Firebase 書き込みエラー: ' + e.message);
-    }
+    $('answer-ta').value = JSON.stringify(pc.localDescription);
+    show('answer-block');
   };
 
   try {
-    await pc.setRemoteDescription(snap.val());
+    await pc.setRemoteDescription(offer);
     const ans = await pc.createAnswer();
     await pc.setLocalDescription(ans);
-  } catch(e) {
-    toast('接続エラー: ' + e.message);
-    hide('join-status');
-  }
-}
-
-function copyRoomCode() {
-  navigator.clipboard.writeText(roomCode).then(() => {
-    const btn = $('copy-room-btn');
-    const orig = btn.textContent;
-    btn.textContent = '✅ コピーしました';
-    btn.classList.add('ok');
-    setTimeout(() => { btn.textContent = orig; btn.classList.remove('ok'); }, 2000);
-  }).catch(() => toast('コピーに失敗しました'));
-}
-
-function copyRoomUrl() {
-  const url = $('share-url-display').textContent;
-  navigator.clipboard.writeText(url).then(() => {
-    const btn = $('copy-url-btn');
-    const orig = btn.textContent;
-    btn.textContent = '✅ コピーしました';
-    btn.classList.add('ok');
-    setTimeout(() => { btn.textContent = orig; btn.classList.remove('ok'); }, 2000);
-  }).catch(() => toast('コピーに失敗しました'));
+  } catch(e) { toast('エラー: ' + e.message); }
 }
 
 // ── DataChannel ──────────────────────────────────────────
@@ -1167,61 +1061,34 @@ function closeCamera() {
 }
 
 // ── Events ───────────────────────────────────────────────
-const chatTa = $('chat-ta');
-chatTa.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendText(); }
-});
-chatTa.addEventListener('input', () => autoH(chatTa));
+document.addEventListener('DOMContentLoaded', () => {
+  const ta = $('chat-ta');
 
-chatTa.addEventListener('paste', e => {
-  const items = e.clipboardData?.items;
-  if (!items) return;
-  for (const item of items) {
-    if (item.type.startsWith('image/')) {
-      e.preventDefault();
-      const reader = new FileReader();
-      reader.onload = ev => sendImg(ev.target.result);
-      reader.readAsDataURL(item.getAsFile());
-      return;
+  ta.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendText(); }
+  });
+  ta.addEventListener('input', () => autoH(ta));
+
+  // Paste image
+  ta.addEventListener('paste', e => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+        const reader = new FileReader();
+        reader.onload = ev => sendImg(ev.target.result);
+        reader.readAsDataURL(item.getAsFile());
+        return;
+      }
     }
-  }
+  });
+
+  // Name input: Enter to continue
+  $('name-inp').addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitName();
+  });
 });
-
-$('name-inp').addEventListener('keydown', e => {
-  if (e.key === 'Enter') submitName();
-});
-
-$('room-inp').addEventListener('keydown', e => {
-  if (e.key === 'Enter') joinRoom();
-});
-
-// Auto-fill room code from URL (?room=XXXXXX)
-const urlRoom = new URLSearchParams(location.search).get('room');
-if (urlRoom && /^[A-Z0-9]{6}$/i.test(urlRoom)) {
-  isHost = false;
-  hide('s0');
-  show('stepper');
-  show('s1');
-  setStep(1);
-  $('s1-desc').textContent = `ルーム「${urlRoom.toUpperCase()}」に参加します。ニックネームを入力してください。`;
-  $('name-inp').focus();
-}
-
-// ── Window exports (for inline onclick handlers) ─────────
-window.pickRole     = pickRole;
-window.submitName   = submitName;
-window.copyRoomCode = copyRoomCode;
-window.copyRoomUrl  = copyRoomUrl;
-window.joinRoom     = joinRoom;
-window.sendText     = sendText;
-window.copyField    = copyField;
-window.openCamera   = openCamera;
-window.closeCamera  = closeCamera;
-window.capture      = capture;
-window.retake       = retake;
-window.sendPhoto    = sendPhoto;
-window.openLb       = openLb;
-window.hide         = hide;
 </script>
 </body>
 </html>

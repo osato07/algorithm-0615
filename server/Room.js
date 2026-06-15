@@ -8,6 +8,25 @@ const TICK_MS        = 1000 / 60;   // 60Hz ゲームロジック
 const BROADCAST_HZ   = 20;
 const BROADCAST_MS   = 1000 / BROADCAST_HZ;
 const MAX_PLAYERS    = 4;
+const WORLD_W        = 1800;
+const WORLD_H        = 1500;
+const PLAYER_RADIUS  = 28;
+const BULLET_RADIUS  = 6;
+const PLAYER_HIT_RADIUS = PLAYER_RADIUS + BULLET_RADIUS;
+const WALLS = [
+  { x: WORLD_W / 2, y: -16,          w: WORLD_W, h: 32  },
+  { x: WORLD_W / 2, y: WORLD_H + 16, w: WORLD_W, h: 32  },
+  { x: -16,        y: WORLD_H / 2,  w: 32,      h: WORLD_H },
+  { x: WORLD_W+16, y: WORLD_H / 2,  w: 32,      h: WORLD_H },
+  { x: 500,  y: 400,  w: 200, h: 32  },
+  { x: 1300, y: 400,  w: 200, h: 32  },
+  { x: 500,  y: 1100, w: 200, h: 32  },
+  { x: 1300, y: 1100, w: 200, h: 32  },
+  { x: 900,  y: 600,  w: 32,  h: 260 },
+  { x: 900,  y: 900,  w: 32,  h: 260 },
+  { x: 600,  y: 750,  w: 240, h: 32  },
+  { x: 1200, y: 750,  w: 240, h: 32  },
+];
 
 function requiredExp(level) {
   return Math.floor(100 * Math.pow(level, 1.5));
@@ -18,6 +37,47 @@ function applyLevelUp(player) {
   player.maxHp    += 10;
   player.hp        = player.maxHp;
   player.moveSpeed = Math.min(player.moveSpeed + 3, 220);
+}
+
+function segmentHitsRect(x1, y1, x2, y2, rect) {
+  const minX = rect.x - rect.w / 2;
+  const maxX = rect.x + rect.w / 2;
+  const minY = rect.y - rect.h / 2;
+  const maxY = rect.y + rect.h / 2;
+  let tMin = 0;
+  let tMax = 1;
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+
+  for (const [p, q] of [[-dx, x1 - minX], [dx, maxX - x1], [-dy, y1 - minY], [dy, maxY - y1]]) {
+    if (p === 0) {
+      if (q < 0) return false;
+      continue;
+    }
+    const t = q / p;
+    if (p < 0) tMin = Math.max(tMin, t);
+    else tMax = Math.min(tMax, t);
+    if (tMin > tMax) return false;
+  }
+  return true;
+}
+
+function segmentHitsWall(x1, y1, x2, y2) {
+  return WALLS.some(wall => segmentHitsRect(x1, y1, x2, y2, wall));
+}
+
+function segmentCircleHitT(x1, y1, x2, y2, cx, cy, radius) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return null;
+
+  const t = Math.max(0, Math.min(1, ((cx - x1) * dx + (cy - y1) * dy) / lenSq));
+  const px = x1 + dx * t;
+  const py = y1 + dy * t;
+  const hx = cx - px;
+  const hy = cy - py;
+  return hx * hx + hy * hy <= radius * radius ? t : null;
 }
 
 class Room {
@@ -49,15 +109,11 @@ class Room {
       equippedWeaponId: 'handgun',
       ownedWeaponIds: ['handgun'],
       isAlive: true,
+      isReady: false,
       lastShotAt: 0,
       moveSpeed: 180,
     };
     this.clients[userId] = ws;
-
-    // 既存プレイヤー情報を新規に送る
-    this._send(ws, { type: 'roomState', players: this.players, enemies: this.enemies });
-    // 全員に参加通知
-    this._broadcast({ type: 'playerJoined', player: this.players[userId] });
   }
 
   removePlayer(userId) {
@@ -78,7 +134,15 @@ class Room {
       case 'weapon':  this._onWeaponSwitch(player, msg); break;
       case 'buy':     this._onBuy(player, msg);     break;
       case 'signal':  this._onSignal(userId, msg);  break;
+      case 'ready':   this._onReady(player);         break;
     }
+  }
+
+  _onReady(player) {
+    if (player.isReady) return;
+    player.isReady = true;
+    this._send(this.clients[player.userId], { type: 'roomState', players: this.players, enemies: this.enemies });
+    this._broadcast({ type: 'playerJoined', player }, player.userId);
   }
 
   // ── WebRTC シグナリング中継 ──────────────────────────────
@@ -183,12 +247,22 @@ class Room {
 
   _tickBullets(dt, nowMs) {
     for (const [bid, b] of Object.entries(this.bullets)) {
+      const prevX = b.x;
+      const prevY = b.y;
       b.x += b.vx * dt;
       b.y += b.vy * dt;
       b.traveledSq += (b.vx * dt) ** 2 + (b.vy * dt) ** 2;
 
       if (b.traveledSq >= b.range * b.range) { delete this.bullets[bid]; continue; }
-      if (b.x < 0 || b.y < 0 || b.x > 1800 || b.y > 1500) { delete this.bullets[bid]; continue; }
+      if (b.x < 0 || b.y < 0 || b.x > WORLD_W || b.y > WORLD_H) { delete this.bullets[bid]; continue; }
+      if (segmentHitsWall(prevX, prevY, b.x, b.y)) { delete this.bullets[bid]; continue; }
+
+      const playerHit = this._findPlayerHitByBullet(b, prevX, prevY);
+      if (playerHit) {
+        this._applyPlayerShot(playerHit, b);
+        delete this.bullets[bid];
+        continue;
+      }
 
       // 敵との当たり判定
       let hit = false;
@@ -210,9 +284,59 @@ class Room {
         }
       }
       if (hit) continue;
-
-      // 壁判定は GameScene クライアント側で行う（サーバーはシンプルに境界チェックのみ）
     }
+  }
+
+  _findPlayerHitByBullet(b, prevX, prevY) {
+    let best = null;
+    let bestT = Infinity;
+
+    for (const p of Object.values(this.players)) {
+      if (p.userId === b.ownerId || !p.isAlive || !p.isReady) continue;
+      const t = segmentCircleHitT(prevX, prevY, b.x, b.y, p.x, p.y, PLAYER_HIT_RADIUS);
+      if (t !== null && t < bestT) {
+        best = p;
+        bestT = t;
+      }
+    }
+
+    return best;
+  }
+
+  _applyPlayerShot(player, bullet) {
+    player.hp -= bullet.damage;
+    const shooter = this.players[bullet.ownerId];
+    const angle = Math.atan2(bullet.vy, bullet.vx);
+
+    if (player.hp <= 0) {
+      player.hp = 0;
+      player.isAlive = false;
+      this._broadcast({
+        type: 'playerDied',
+        userId: player.userId,
+        killerId: bullet.ownerId,
+        killerName: shooter?.displayName ?? null,
+      });
+      setTimeout(() => this._respawnPlayer(player.userId), 3000);
+      return;
+    }
+
+    this._send(this.clients[player.userId], {
+      type: 'damaged',
+      hp: player.hp,
+      by: bullet.ownerId,
+      damage: bullet.damage,
+      source: 'player',
+      knockbackAngle: angle,
+      knockbackForce: 180,
+    });
+    this._broadcast({
+      type: 'playerHit',
+      userId: player.userId,
+      attackerId: bullet.ownerId,
+      hp: player.hp,
+      damage: bullet.damage,
+    });
   }
 
   _applyEnemyAttack(ev, nowMs) {
@@ -223,10 +347,16 @@ class Room {
       player.hp = 0;
       player.isAlive = false;
       this._broadcast({ type: 'playerDied', userId: player.userId });
-      // 3秒後にリスポーン
       setTimeout(() => this._respawnPlayer(player.userId), 3000);
     } else {
-      this._send(this.clients[player.userId], { type: 'damaged', hp: player.hp, by: ev.enemyId });
+      const angle = Math.atan2(player.y - ev.enemyY, player.x - ev.enemyX);
+      this._send(this.clients[player.userId], {
+        type: 'damaged',
+        hp: player.hp,
+        by: ev.enemyId,
+        knockbackAngle: angle,
+        knockbackForce: ev.knockbackForce,
+      });
     }
   }
 

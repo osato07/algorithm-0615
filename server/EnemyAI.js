@@ -134,7 +134,7 @@ function tickEnemies(enemies, players, nowMs, dtMs) {
     }
 
     const def = DEF_MAP[e.definitionId];
-    const alive = Object.values(players).filter(p => p.isAlive);
+    const alive = Object.values(players).filter(p => p.isAlive && p.isReady);
     if (alive.length === 0) continue;
 
     // 最寄りプレイヤーを探す
@@ -170,6 +170,9 @@ function tickEnemies(enemies, players, nowMs, dtMs) {
           enemyId: e.id,
           targetId: nearest.userId,
           damage: def.attackDamage,
+          knockbackForce: def.knockbackForce ?? 0,
+          enemyX: e.x,
+          enemyY: e.y,
         });
       }
     }

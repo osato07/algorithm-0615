@@ -74,6 +74,18 @@ class RemotePlayer {
     this._spr.setAlpha(0.3);
   }
 
+  onHit(hp) {
+    this._hp = hp;
+    this._drawHpBar();
+    this._scene.tweens.add({
+      targets: this._spr,
+      alpha: 0.45,
+      duration: 45,
+      yoyo: true,
+      onComplete: () => this._spr.setAlpha(this.isAlive ? 1 : 0.3),
+    });
+  }
+
   onRespawn(x, y, hp) {
     this.isAlive = true;
     this.x = x; this.y = y;

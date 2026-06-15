@@ -10,7 +10,8 @@
     "attackRange": 48,
     "experienceReward": 15,
     "coinReward": 10,
-    "radius": 20
+    "radius": 20,
+    "knockbackForce": 120
   },
   {
     "id": "goblin",
@@ -23,7 +24,8 @@
     "attackRange": 52,
     "experienceReward": 35,
     "coinReward": 25,
-    "radius": 24
+    "radius": 24,
+    "knockbackForce": 220
   },
   {
     "id": "ogre",
@@ -36,6 +38,7 @@
     "attackRange": 72,
     "experienceReward": 100,
     "coinReward": 80,
-    "radius": 36
+    "radius": 36,
+    "knockbackForce": 420
   }
 ]

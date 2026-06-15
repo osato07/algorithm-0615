@@ -80,6 +80,8 @@ class WebRTCManager {
 
     pc.ontrack = (e) => {
       entry.stream = e.streams[0];
+      const tracks = entry.stream.getTracks().map(t => `${t.kind}:${t.readyState}`).join(', ');
+      console.log(`[WebRTC] remote stream from ${userId}: ${tracks}`);
       document.dispatchEvent(new CustomEvent('remoteStream', { detail: { userId, stream: e.streams[0] } }));
     };
 

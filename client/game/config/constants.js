@@ -20,6 +20,6 @@ const C = {
   // 弾
   BULLET_RADIUS: 5,
 
-  // 同一オリジン配信なので hostname:port をそのまま使う
-  SERVER_URL: `ws://${location.host}`,
+  // 同一オリジン配信。HTTPS 公開時は WebSocket も wss:// にする。
+  SERVER_URL: `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`,
 };

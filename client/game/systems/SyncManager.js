@@ -66,6 +66,11 @@ class SyncManager extends EventTarget {
     this._send({ type: 'buy', weaponId });
   }
 
+  /** GameScene 初期化完了を通知 → サーバーが roomState を返す */
+  sendReady() {
+    this._send({ type: 'ready' });
+  }
+
   // WebRTC シグナリング中継
   sendSignal(toUserId, payload) {
     this._send({ type: 'signal', to: toUserId, payload });
